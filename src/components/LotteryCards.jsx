@@ -180,7 +180,7 @@ const LotteryCards = () => {
               {/* FOOTER */}
               <div className="flex justify-between items-center mt-1.5">
                 <Link
-                  to="/about"
+                  to="/"
                   className="text-sm font-bold text-indigo-600"
                 >
                   About →

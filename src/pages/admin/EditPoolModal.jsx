@@ -141,7 +141,7 @@ function EditPoolsModal({ open, onClose, pools, editPoolId, onUpdated }) {
 
       const slug = poolObj?.slug || poolIdentifier;
 
-      const res = await axiosInstance.patch(`/admin/pool/${slug}`, fd, {
+      const res = await axiosInstance.patch(`/pool/update-pool/${slug}`, fd, {
         headers: {
           Authorization: `Bearer ${adminToken}`,
           // ✅ DO NOT set multipart content-type manually
