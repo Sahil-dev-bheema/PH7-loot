@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import axiosInstance from "../utils/axiosInstance";
 import { useAuth } from "../context/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
-import TicketNumberPicker from "./PlaynowSetup/TicketNumberPicker";
 
 function PlayNow() {
   const location = useLocation();
@@ -11,403 +10,204 @@ function PlayNow() {
 
   const ticketId = location.state?.ticketId ?? null;
 
-  const [locked, setLocked] = useState(false);
-  const [purchased, setPurchased] = useState(false); // ✅ after successful buy
-
   const [ticketTitle, setTicketTitle] = useState(
-    location.state?.ticketTitle || "Powerball Plus"
+    location.state?.ticketTitle || "RAJSHREE 10 EVENING"
   );
   const [ticketPrice, setTicketPrice] = useState(
-    Number(location.state?.ticketPrice ?? 0)
+    Number(location.state?.ticketPrice ?? 10)
   );
 
-  const priceText = Number(ticketPrice || 0).toLocaleString("en-IN");
+  const numbers = useMemo(() => Array.from({ length: 50 }, (_, i) => i + 1), []);
 
-  const numbers = useMemo(() => Array.from({ length: 48 }, (_, i) => i + 1), []);
-  const [selected, setSelected] = useState(null);
-  const [isEditing, setIsEditing] = useState(true);
+  const [tickets, setTickets] = useState([]);
+  const [visibleCount, setVisibleCount] = useState(15);
 
   const [paying, setPaying] = useState(false);
-  const [loadingTicket, setLoadingTicket] = useState(false);
   const [error, setError] = useState("");
 
-  const { wallet, updateWallet } = useAuth();
-  const walletBalance = Number(wallet?.cash ?? 0);
-  const walletBonus = Number(wallet?.bonus ?? 0);
-  const totalWallet = walletBalance + walletBonus;
-  const walletText = totalWallet.toLocaleString("en-IN");
+  const { wallet } = useAuth();
 
+  const priceText = ticketPrice.toLocaleString("en-IN");
+
+  const today = new Date().toLocaleDateString("en-IN");
+
+  // ✅ FETCH
   useEffect(() => {
-    const hasPrice = Number(location.state?.ticketPrice ?? 0) > 0;
-    const hasTitle = Boolean(location.state?.ticketTitle);
-    if (hasPrice && hasTitle) return;
-
-    if (!ticketId) {
-      setError("Ticket ID missing. Please go back and select a pool again.");
-      return;
-    }
+    if (!ticketId) return;
 
     (async () => {
       try {
-        setLoadingTicket(true);
-        setError("");
-
         const res = await axiosInstance.get("/pool");
-        if (!res.data?.success) throw new Error("Failed to fetch pools.");
+        const found = res.data?.data?.find(
+          (p) => String(p.id) === String(ticketId)
+        );
 
-        const list = res.data?.data || [];
-        const found = list.find((p) => String(p.id) === String(ticketId));
-        if (!found) throw new Error("Ticket not found.");
-
-        setTicketTitle(found.title || "Powerball Plus");
-        setTicketPrice(Number(found.price || 0));
-      } catch (e) {
-        const msg =
-          e?.response?.data?.message ||
-          e?.message ||
-          "Failed to fetch ticket details.";
-        setError(msg);
-      } finally {
-        setLoadingTicket(false);
-      }
+        if (found) {
+          setTicketTitle(found.title);
+          setTicketPrice(Number(found.price));
+        }
+      } catch {}
     })();
-  }, [ticketId, location.state]);
+  }, [ticketId]);
 
-  const debitFromWallet = (amount, walletObj) => {
-    const cash = Number(walletObj?.cash ?? 0);
-    const bonus = Number(walletObj?.bonus ?? 0);
-    const total = cash + bonus;
+  // ✅ FORMAT NUMBER → 05-09/9422
+  const formatNumber = (num) => {
+    const part1 = String(num).padStart(2, "0");
+    const part2 = String(Math.floor(Math.random() * 99)).padStart(2, "0");
+    const part3 = String(9422); // static or from backend
 
-    if (amount <= 0) return { ok: false, message: "Invalid amount." };
-    if (total < amount)
-      return { ok: false, message: "Insufficient wallet balance." };
-
-    const cashUsed = Math.min(cash, amount);
-    const remaining = amount - cashUsed;
-    const bonusUsed = remaining;
-
-    const nextWallet = { cash: cash - cashUsed, bonus: bonus - bonusUsed };
-    return { ok: true, nextWallet, breakdown: { cashUsed, bonusUsed } };
+    return `${part1}-${part2}/${part3}`;
   };
 
-  // ✅ selection handlers (blocked after purchase)
-  const handlePick = (num) => {
-    if (purchased) return;
-    if (locked && selected !== num) return;
-    setSelected(num);
-    setLocked(true);
-    setIsEditing(true);
+  const visibleNumbers = numbers.slice(0, visibleCount);
+
+  // ✅ CLICK → ADD TO SUMMARY
+  const handleSelect = (num) => {
+    const exists = tickets.find((t) => t.number === num);
+
+    if (exists) {
+      // remove if already selected
+      setTickets(tickets.filter((t) => t.number !== num));
+    } else {
+      setTickets([
+        ...tickets,
+        {
+          number: num,
+          display: formatNumber(num),
+          amount: ticketPrice,
+          date: today,
+        },
+      ]);
+    }
   };
 
-  const handleRandomPick = () => {
-    if (purchased) return;
-    if (locked) return;
-    const randomIndex = Math.floor(Math.random() * 48);
-    setSelected(randomIndex + 1);
-    setLocked(true);
-    setIsEditing(true);
-  };
-
-  const handleClear = () => {
-    if (purchased) return;
-    setSelected(null);
-    setLocked(false);
-    setIsEditing(true);
-    setError("");
-  };
-
-  const handleEdit = () => {
-    if (purchased) return;
-    setLocked(false);
-    setIsEditing(true);
-  };
-
-  const handleDone = () => {
-    if (!selected) return;
-    setIsEditing(false);
-  };
-
-  // ✅ after purchase -> reset flow to buy again
-  const handleBuyAnother = () => {
-    setPurchased(false);
-    setSelected(null);
-    setLocked(false);
-    setIsEditing(true);
-    setError("");
-  };
-
-  const handlePayAndPlay = async () => {
-    setError("");
-
-    const token =
-      localStorage.getItem("user_token") || localStorage.getItem("token");
-    if (!token) {
-      setError("Session expired. Please login again.");
-      navigate("/login");
+  // ✅ PAYMENT
+  const handlePay = async () => {
+    if (tickets.length === 0) {
+      setError("Please select at least one ticket");
       return;
     }
-
-    if (!ticketId) {
-      setError("Ticket ID missing. Please go back and select a pool again.");
-      return;
-    }
-
-    if (!ticketPrice || ticketPrice <= 0) {
-      setError("Ticket price not available. Please refresh or go back.");
-      return;
-    }
-
-    if (!selected) {
-      setError("Please select a number first.");
-      return;
-    }
-
-    const ok = window.confirm(`Pay ₹${priceText} from your wallet?`);
-    if (!ok) return;
-
-    const result = debitFromWallet(ticketPrice, wallet);
-    if (!result.ok) {
-      setError(result.message || "Payment failed.");
-      return;
-    }
-
-    const prevWallet = { cash: walletBalance, bonus: walletBonus };
 
     try {
       setPaying(true);
 
-      updateWallet(result.nextWallet);
-
-      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-      const userId = storedUser?.id || storedUser?._id || null;
+      const totalAmount = tickets.reduce((sum, t) => sum + t.amount, 0);
 
       await axiosInstance.post("/ticket/buy", {
+        tickets,
         pool_name: ticketTitle,
-        user_number: selected,
-        ticket_amount: ticketPrice,
         draw_number: ticketId,
         payment_status: "PAID",
-        user_id: userId,
-        wallet: walletBalance,
+        total_amount: totalAmount,
       });
 
-      alert(`✅ Ticket purchased! Number: ${selected}`);
-
-      // ✅ lock + blur now, but allow Buy Another Ticket
-      setPurchased(true);
-      setIsEditing(false);
-      setLocked(true);
-    } catch (e) {
-      updateWallet(prevWallet);
-
-      const status = e?.response?.status;
-      const msg =
-        e?.response?.data?.message ||
-        e?.message ||
-        "Payment failed due to server error.";
-
-      if (status === 401) {
-        setError("Unauthorized (401). Please login again.");
-        return;
-      }
-
-      setError(msg);
+      alert("✅ Tickets purchased successfully!");
+      setTickets([]);
+    } catch (err) {
+      setError("Payment failed");
     } finally {
       setPaying(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-4xl mx-auto px-4 py-5 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left */}
-        <div className="lg:col-span-8">
-          <div className="rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-sm">
-            <div className="h-1.5 bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400" />
+    <div className="min-h-screen bg-gray-100 p-4">
+      <div className="max-w-6xl mx-auto grid lg:grid-cols-3 gap-6">
 
-            <div className="p-5 border-b bg-gradient-to-br from-slate-900 to-slate-800 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-white/70">Ticket</p>
-                  <h2 className="text-lg font-semibold">{ticketTitle}</h2>
-                  {!!ticketId && (
-                    <p className="text-[11px] text-white/60 mt-0.5">
-                      Ticket ID: {ticketId}
-                    </p>
-                  )}
-                </div>
+        {/* LEFT */}
+        <div className="lg:col-span-2 bg-white p-5 rounded-2xl shadow">
 
-                <div className="text-right">
-                  <p className="text-xs text-white/70">Selection</p>
-                  <p className="text-sm font-semibold">
-                    {selected ? `#${selected}` : "None"}
-                  </p>
-                </div>
-              </div>
+          <h2 className="text-xl font-bold mb-2">{ticketTitle}</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Ticket Price ₹{priceText}
+          </p>
 
-              <div className="mt-3 text-xs text-white/70 flex items-center justify-between">
-                <span>
-                  {purchased
-                    ? "Ticket purchased"
-                    : isEditing
-                    ? "Pick 1 number"
-                    : "Ticket confirmed"}
-                </span>
-                <span className="text-white/80">
-                  {selected ? "1/1 selected" : "0/1 selected"}
-                </span>
-              </div>
+          <p className="font-semibold mb-2">Select Ticket Number</p>
 
-              <div className="mt-3 text-xs text-white/70 flex items-center justify-between">
-                <span>
-                  Ticket Price: {loadingTicket ? "Loading..." : `₹${priceText}`}
-                </span>
-                <span>Wallet: ₹{walletText}</span>
-              </div>
-            </div>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+            {visibleNumbers.map((num) => {
+              const isSelected = tickets.some((t) => t.number === num);
 
-            <div className="p-5">
-              {error ? (
-                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {error}
-                </div>
-              ) : null}
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">Your chosen number</p>
-                  <p className="text-lg font-bold text-gray-900 mt-1">
-                    {selected ? selected : "—"}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {!isEditing && !purchased && (
-                    <button
-                      onClick={handleEdit}
-                      className="px-4 py-2 rounded-full text-sm font-semibold border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100 transition"
-                      type="button"
-                    >
-                      Edit
-                    </button>
-                  )}
-
-                  <button
-                    onClick={handleClear}
-                    disabled={purchased}
-                    className={[
-                      "px-4 py-2 rounded-full text-sm font-semibold border transition",
-                      purchased
-                        ? "border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed"
-                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
-                    ].join(" ")}
-                    type="button"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-
-              {/* ✅ Picker stays visible. After purchase it becomes blurred+locked */}
-              <TicketNumberPicker
-                max={48}
-                selected={selected}
-                purchased={purchased}
-                onPick={handlePick}
-                onRandom={handleRandomPick}
-                onClear={handleClear}
-              />
-
-              <div className="mt-6 flex items-center justify-end gap-2">
-                {purchased ? (
-                  <button
-                    onClick={handleBuyAnother}
-                    className="px-5 py-2 rounded-full text-sm font-semibold transition bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98]"
-                    type="button"
-                  >
-                    ➕ Buy Another Ticket
-                  </button>
-                ) : isEditing ? (
-                  <button
-                    onClick={handleDone}
-                    disabled={!selected}
-                    className={[
-                      "px-5 py-2 rounded-full text-sm font-semibold transition",
-                      selected
-                        ? "bg-orange-500 text-white hover:bg-orange-600 active:scale-[0.98]"
-                        : "bg-gray-200 text-gray-500 cursor-not-allowed",
-                    ].join(" ")}
-                    type="button"
-                  >
-                    Confirm Ticket
-                  </button>
-                ) : (
-                  <button
-                    onClick={handlePayAndPlay}
-                    disabled={paying || loadingTicket || !ticketPrice}
-                    className={[
-                      "px-5 py-2 rounded-full text-sm font-semibold transition",
-                      paying || loadingTicket || !ticketPrice
-                        ? "bg-emerald-300 text-white cursor-not-allowed"
-                        : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98]",
-                    ].join(" ")}
-                    type="button"
-                  >
-                    {paying ? "Processing..." : `Pay ₹${priceText} via Wallet`}
-                  </button>
-                )}
-              </div>
-
-              {!isEditing && !purchased && totalWallet < ticketPrice ? (
-                <p className="mt-3 text-xs text-red-600">
-                  Insufficient wallet balance. Please add money.
-                </p>
-              ) : null}
-            </div>
+              return (
+                <button
+                  key={num}
+                  onClick={() => handleSelect(num)}
+                  className={`px-3 py-2 rounded-full border text-xs font-semibold transition
+                    ${
+                      isSelected
+                        ? "bg-black text-white"
+                        : "bg-white border-gray-300 hover:bg-gray-100"
+                    }`}
+                >
+                  {formatNumber(num)}
+                </button>
+              );
+            })}
           </div>
+
+          {/* MORE BUTTON */}
+          {visibleCount < numbers.length && (
+            <button
+              onClick={() => setVisibleCount((prev) => prev + 15)}
+              className="mt-4 text-blue-600 font-semibold"
+            >
+              + More Numbers
+            </button>
+          )}
+
+          {error && (
+            <p className="text-red-500 mt-3 text-sm">{error}</p>
+          )}
         </div>
 
-        {/* Right */}
-        <div className="lg:col-span-4">
-          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
-            <h3 className="text-base font-semibold text-gray-900">
-              Ticket Summary
-            </h3>
+        {/* RIGHT SUMMARY */}
+        <div className="bg-white p-5 rounded-2xl shadow">
 
-            <div className="mt-4 space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Lottery</span>
-                <span className="font-semibold text-gray-900">{ticketTitle}</span>
+          <h3 className="font-semibold mb-4">Summary</h3>
+
+          <div className="space-y-3 max-h-64 overflow-auto">
+            {tickets.map((t, i) => (
+              <div
+                key={i}
+                className="bg-gray-50 p-3 rounded-lg text-sm"
+              >
+                <div className="flex justify-between items-center">
+                  <span className="bg-black text-white px-3 py-1 rounded-full">
+                    {t.display}
+                  </span>
+                  <span className="font-semibold">₹{t.amount}</span>
+                </div>
+
+                <p className="text-xs text-gray-500 mt-1">
+                  Date: {t.date}
+                </p>
               </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Selected</span>
-                <span className="font-semibold text-gray-900">
-                  {selected ? selected : "—"}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Ticket Price</span>
-                <span className="font-semibold text-gray-900">
-                  {loadingTicket ? "Loading..." : `₹${priceText}`}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Wallet Total</span>
-                <span className="font-semibold text-gray-900">₹{walletText}</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => navigate(-1)}
-              className="mt-4 w-full rounded-xl px-4 py-3 text-sm font-semibold border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition"
-              type="button"
-            >
-              ← Back
-            </button>
+            ))}
           </div>
+
+          {/* SUBTOTAL */}
+          <div className="mt-4 border-t pt-3 flex justify-between font-semibold">
+            <span>Sub Total</span>
+            <span>
+              ₹{tickets.reduce((sum, t) => sum + t.amount, 0)}
+            </span>
+          </div>
+
+          {/* PAY */}
+          <button
+            onClick={handlePay}
+            disabled={paying}
+            className="mt-4 w-full bg-green-600 text-white py-2 rounded-lg"
+          >
+            {paying ? "Processing..." : "Pay Now"}
+          </button>
+
+          <button
+            onClick={() => navigate(-1)}
+            className="mt-3 w-full border py-2 rounded-lg"
+          >
+            Back
+          </button>
         </div>
       </div>
     </div>
