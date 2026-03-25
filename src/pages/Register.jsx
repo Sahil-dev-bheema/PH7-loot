@@ -130,7 +130,7 @@ const Register = () => {
 
       login(userData, walletData);
 
-      localStorage.setItem("user", JSON.stringify(res.data.user));
+      
       localStorage.setItem("user_token", JSON.stringify(res.data.token));
       
 

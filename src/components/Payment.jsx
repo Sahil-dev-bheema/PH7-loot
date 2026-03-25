@@ -98,7 +98,7 @@ const handlePay = async () => {
       key,
       amount: rpAmount,
       currency,
-      name: "Your App",
+      name: "PH7-Loot",
       description: `Buy Package: ${title}`,
       order_id: orderId,
       notes: {

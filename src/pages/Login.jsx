@@ -33,52 +33,42 @@ const Login = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setServerError("");
-    if (!validate()) return;
+  e.preventDefault();
+  setServerError("");
+  if (!validate()) return;
 
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const res = await axiosInstance.post("/user/login", form);
-      console.log("✅ login res.data:", res.data);
+    const res = await axiosInstance.post("/user/login", form);
+    console.log("✅ login res.data:", res.data);
 
-      // ✅ support common response shapes
-      const root = res?.data || {};
-      const payload = root?.data?.data || root?.data || root;
+    const userData = res?.data?.user;
+    const token = res?.data?.token;
 
-      const userData = payload?.user || root?.user;
-      const token = payload?.token || root?.token;
+    if (!userData) throw new Error("User data missing");
+    if (!token) throw new Error("Token missing");
 
-      // ✅ wallet can be either object or fields
-      const w = payload?.wallet || userData?.wallet || payload?.user?.wallet || {};
-      const walletData = {
-        cash: Number(w?.cash ?? w?.balance ?? 0),
-        bonus: Number(w?.bonus ?? 0),
-      };
+    // ✅ store token
+    localStorage.setItem("user_token", token);
 
-      if (!userData) throw new Error("User data missing in login response");
-      if (!token) throw new Error("Token missing in login response");
+    // ✅ pass backend user only
+    login(userData);
 
-      // ✅ store token as raw string (NOT JSON.stringify)
-      localStorage.setItem("user_token", token);
+    
+navigate("/", { replace: true }); // navigate right away
 
-      // ✅ let AuthContext store user + wallet
-      login(userData, walletData);
+  } catch (err) {
+    console.error("❌ login error:", err?.response?.data || err.message);
+    const message = err.response?.data?.message || err.message || "Login failed";
+    setServerError(message);
+    setErrors((prev) => ({ ...prev, password: "Incorrect password" }));
+  } finally {
+    setLoading(false);
+  }
+};
 
-      // optional: notify listeners
-      window.dispatchEvent(new Event("authChanged"));
-
-      navigate("/", { replace: true });
-    } catch (err) {
-      console.error("❌ login error:", err?.response?.data || err.message);
-      const message = err.response?.data?.message || err.message || "Login failed";
-      setServerError(message);
-      setErrors((prev) => ({ ...prev, password: "Incorrect password" }));
-    } finally {
-      setLoading(false);
-    }
-  };
+  // ---- UI CODE SAME AS YOURS ----
 
   const baseField =
     "w-full rounded-xl border bg-white/80 px-3 py-2 text-sm outline-none transition " +
