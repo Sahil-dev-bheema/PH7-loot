@@ -28,6 +28,7 @@ const isExpired = (date) => {
 
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 
+
 /* ---------- SKELETON ---------- */
 const TicketSkeleton = () => (
   <div className="rounded bg-white shadow p-1.5 animate-pulse">
@@ -76,6 +77,8 @@ const LotteryCards = () => {
         expiredAt: t.expire_at,
         imageUrl: t.Imageurl ? `${baseURL}${t.Imageurl}` : "",
       }));
+console.log(apiTickets);
+
 
       setTickets(apiTickets);
     } catch {

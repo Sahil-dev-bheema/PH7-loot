@@ -27,7 +27,7 @@ const Poolresult = ({ poolTitle }) => {
         setWinners([]);
 
         const res = await axiosInstance.get(
-          `/pool/result/${encodeURIComponent(poolTitle)}`
+          `/result/${encodeURIComponent(poolTitle)}`
         );
 
         const data = res?.data?.data;

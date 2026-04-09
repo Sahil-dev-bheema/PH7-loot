@@ -5,6 +5,7 @@ import { FiMenu, FiX, FiUser, FiLogOut } from "react-icons/fi";
 import WalletDropdown from "./WalletDropdown";
 import logoImg from '../assets/images/logo.png';
 import { useAuth } from "../context/AuthContext";
+import { FiShoppingCart } from "react-icons/fi";
 
 const Navbar = () => {
   const navigate = useNavigate();

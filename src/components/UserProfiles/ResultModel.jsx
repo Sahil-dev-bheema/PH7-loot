@@ -119,7 +119,7 @@ export default function ResultModel({ open, onClose, ticket }) {
 
       try {
         const res = await axiosInstance.get(
-          `/pool/result/${encodeURIComponent(poolName)}`,
+          `/result/${encodeURIComponent(poolName)}`,
         );
         setResult(res?.data?.data ?? null);
       } catch (e) {

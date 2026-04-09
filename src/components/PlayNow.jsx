@@ -1,12 +1,16 @@
-// src/pages/PlayNow.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import axiosInstance from "../utils/axiosInstance";
-import { useAuth } from "../context/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
+
+import { useDispatch, useSelector } from "react-redux";
+import { addToCartAPI } from "../redux/cartSlice";
 
 function PlayNow() {
   const location = useLocation();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  const loading = useSelector((state) => state.cart.loading);
 
   const ticketId = location.state?.ticketId ?? null;
 
@@ -17,18 +21,16 @@ function PlayNow() {
     Number(location.state?.ticketPrice ?? 10)
   );
 
-  const numbers = useMemo(() => Array.from({ length: 50 }, (_, i) => i + 1), []);
+  // ✅ NOW 100 NUMBERS
+  const numbers = useMemo(() => Array.from({ length: 100 }, (_, i) => i + 1), []);
 
-  const [tickets, setTickets] = useState([]);
   const [visibleCount, setVisibleCount] = useState(15);
+  const [selectedNumbers, setSelectedNumbers] = useState([]);
 
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
 
-  const { wallet } = useAuth();
-
   const priceText = ticketPrice.toLocaleString("en-IN");
-
   const today = new Date().toLocaleDateString("en-IN");
 
   // ✅ FETCH
@@ -50,40 +52,82 @@ function PlayNow() {
     })();
   }, [ticketId]);
 
-  // ✅ FORMAT NUMBER → 05-09/9422
+  // ✅ FORMAT
   const formatNumber = (num) => {
     const part1 = String(num).padStart(2, "0");
-    const part2 = String(Math.floor(Math.random() * 99)).padStart(2, "0");
-    const part3 = String(9422); // static or from backend
-
-    return `${part1}-${part2}/${part3}`;
+    return `${part1}-${part1}/9422`;
   };
 
   const visibleNumbers = numbers.slice(0, visibleCount);
 
-  // ✅ CLICK → ADD TO SUMMARY
-  const handleSelect = (num) => {
-    const exists = tickets.find((t) => t.number === num);
+  // ✅ SHOW MORE
+  const handleShowMore = () => {
+    setVisibleCount((prev) => Math.min(prev + 15, numbers.length));
+  };
 
-    if (exists) {
-      // remove if already selected
-      setTickets(tickets.filter((t) => t.number !== num));
-    } else {
-      setTickets([
-        ...tickets,
-        {
-          number: num,
-          display: formatNumber(num),
-          amount: ticketPrice,
-          date: today,
-        },
-      ]);
+  // ✅ SELECT
+  const handleSelect = (num) => {
+    setSelectedNumbers((prev) => {
+      if (prev.includes(num)) {
+        return prev.filter((n) => n !== num);
+      } else {
+        return [...prev, num];
+      }
+    });
+  };
+
+  // ✅ SELECTED TICKETS
+  const selectedTickets = selectedNumbers.map((num) => ({
+    number: num,
+    display: formatNumber(num),
+    amount: ticketPrice,
+    date: today,
+  }));
+
+  // ✅ TOTAL
+  const totalAmount = selectedTickets.reduce(
+    (sum, t) => sum + t.amount,
+    0
+  );
+
+  // ✅ ADD TO CART
+  const handleAddToCart = async () => {
+    if (!ticketId) {
+      setError("Invalid ticket");
+      return;
+    }
+
+    if (selectedNumbers.length === 0) {
+      setError("Please select at least one ticket");
+      return;
+    }
+
+    try {
+      setError("");
+
+      const payload = {
+        pool_id: ticketId,
+        ticket_price: ticketPrice,
+        ticket_quantity: selectedNumbers.length,
+      };
+
+      const res = await dispatch(addToCartAPI(payload));
+
+      if (addToCartAPI.fulfilled.match(res)) {
+        setSelectedNumbers([]);
+        navigate("/cart");
+      } else {
+        throw new Error(res.payload);
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to add to cart");
     }
   };
 
   // ✅ PAYMENT
   const handlePay = async () => {
-    if (tickets.length === 0) {
+    if (selectedTickets.length === 0) {
       setError("Please select at least one ticket");
       return;
     }
@@ -91,10 +135,8 @@ function PlayNow() {
     try {
       setPaying(true);
 
-      const totalAmount = tickets.reduce((sum, t) => sum + t.amount, 0);
-
       await axiosInstance.post("/ticket/buy", {
-        tickets,
+        tickets: selectedTickets,
         pool_name: ticketTitle,
         draw_number: ticketId,
         payment_status: "PAID",
@@ -102,8 +144,8 @@ function PlayNow() {
       });
 
       alert("✅ Tickets purchased successfully!");
-      setTickets([]);
-    } catch (err) {
+      setSelectedNumbers([]);
+    } catch {
       setError("Payment failed");
     } finally {
       setPaying(false);
@@ -116,8 +158,8 @@ function PlayNow() {
 
         {/* LEFT */}
         <div className="lg:col-span-2 bg-white p-5 rounded-2xl shadow">
-
           <h2 className="text-xl font-bold mb-2">{ticketTitle}</h2>
+
           <p className="text-sm text-gray-500 mb-4">
             Ticket Price ₹{priceText}
           </p>
@@ -126,18 +168,18 @@ function PlayNow() {
 
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
             {visibleNumbers.map((num) => {
-              const isSelected = tickets.some((t) => t.number === num);
+              const isSelected = selectedNumbers.includes(num);
 
               return (
                 <button
                   key={num}
                   onClick={() => handleSelect(num)}
-                  className={`px-3 py-2 rounded-full border text-xs font-semibold transition
-                    ${
-                      isSelected
-                        ? "bg-black text-white"
-                        : "bg-white border-gray-300 hover:bg-gray-100"
-                    }`}
+                  className={`px-3 py-2 rounded-full border text-xs font-semibold
+                  ${
+                    isSelected
+                      ? "bg-blue-600 text-white"
+                      : "bg-white border-gray-300"
+                  }`}
                 >
                   {formatNumber(num)}
                 </button>
@@ -145,37 +187,42 @@ function PlayNow() {
             })}
           </div>
 
-          {/* MORE BUTTON */}
+          {/* ✅ SHOW MORE BUTTON */}
           {visibleCount < numbers.length && (
             <button
-              onClick={() => setVisibleCount((prev) => prev + 15)}
-              className="mt-4 text-blue-600 font-semibold"
+              onClick={handleShowMore}
+              className="mt-4 w-full bg-gray-200 py-2 rounded-lg text-sm font-semibold"
             >
-              + More Numbers
+              Show More
             </button>
           )}
 
-          {error && (
-            <p className="text-red-500 mt-3 text-sm">{error}</p>
-          )}
+          <p className="mt-3 text-sm text-gray-500">
+            Selected: {selectedNumbers.length}
+          </p>
+
+          {/* ADD TO CART */}
+          <button
+            onClick={handleAddToCart}
+            disabled={loading}
+            className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg"
+          >
+            {loading ? "Adding..." : "Add to Cart"}
+          </button>
+
+          {error && <p className="text-red-500 mt-3">{error}</p>}
         </div>
 
         {/* RIGHT SUMMARY */}
         <div className="bg-white p-5 rounded-2xl shadow">
-
           <h3 className="font-semibold mb-4">Summary</h3>
 
           <div className="space-y-3 max-h-64 overflow-auto">
-            {tickets.map((t, i) => (
-              <div
-                key={i}
-                className="bg-gray-50 p-3 rounded-lg text-sm"
-              >
-                <div className="flex justify-between items-center">
-                  <span className="bg-black text-white px-3 py-1 rounded-full">
-                    {t.display}
-                  </span>
-                  <span className="font-semibold">₹{t.amount}</span>
+            {selectedTickets.map((t, i) => (
+              <div key={i} className="bg-gray-50 p-3 rounded-lg text-sm">
+                <div className="flex justify-between">
+                  <span>{t.display}</span>
+                  <span>₹{t.amount}</span>
                 </div>
 
                 <p className="text-xs text-gray-500 mt-1">
@@ -185,21 +232,19 @@ function PlayNow() {
             ))}
           </div>
 
-          {/* SUBTOTAL */}
+          {/* TOTAL */}
           <div className="mt-4 border-t pt-3 flex justify-between font-semibold">
-            <span>Sub Total</span>
-            <span>
-              ₹{tickets.reduce((sum, t) => sum + t.amount, 0)}
-            </span>
+            <span>Total</span>
+            <span>₹{totalAmount}</span>
           </div>
 
           {/* PAY */}
-          <button
-            onClick={handlePay}
-            disabled={paying}
-            className="mt-4 w-full bg-green-600 text-white py-2 rounded-lg"
+         <button
+            onClick={handleAddToCart}
+            disabled={loading}
+            className="mt-4 bg-cyan-400 text-white px-4 py-2 rounded-lg"
           >
-            {paying ? "Processing..." : "Pay Now"}
+            {loading ? "Paying..." : "Pay now"}
           </button>
 
           <button

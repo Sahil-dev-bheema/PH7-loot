@@ -30,6 +30,7 @@ import { Toaster } from "react-hot-toast";
 import UserRoute from "./routes/UserRoute"; 
 import WithDrawl from "./components/UserProfiles/WithDrawl";
 import WithdrawlBox from "./pages/admin/withdrawSection/WithdrawlBox.jsx";
+import AddToCart from "./redux/AddToCart.jsx";
 
 /* ---------------- Layout ---------------- */
 const Layout = () => {
@@ -63,6 +64,14 @@ const Layout = () => {
           element={
             <UserRoute>
               <PackagePayment />
+            </UserRoute>
+          }
+        />
+        <Route
+          path="/cart"
+          element={
+            <UserRoute>
+              <AddToCart />
             </UserRoute>
           }
         />

@@ -49,10 +49,20 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("user_token");
   };
 
-  const value = useMemo(
-    () => ({ user, wallet, login, logout }),
-    [user, wallet]
-  );
+ const updateWallet = (updater) => {
+  setWallet((prev) => {
+    const next =
+      typeof updater === "function" ? updater(prev) : updater;
+
+    localStorage.setItem("wallet", JSON.stringify(next)); // persist
+    return next;
+  });
+};
+
+const value = useMemo(
+  () => ({ user, wallet, login, logout, updateWallet }),
+  [user, wallet]
+);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

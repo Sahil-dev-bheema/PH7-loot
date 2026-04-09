@@ -90,7 +90,7 @@ export default function UserProfile() {
   const userId = user?._id || user?.id;
 
   // PROOF: component is rendering?
-  console.log("✅ UserProfile Render", { user, userId });
+ 
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -139,17 +139,15 @@ export default function UserProfile() {
       setError("");
 
       try {
-        console.log("➡️ HITTING API:", `/user/user-profile/${userId}`);
+      
 
         const res = await axiosInstance.get(`/user/user-profile/${userId}`, {
           signal: controller.signal,
         });
 
-        console.log("✅ STATUS:", res.status);
-        console.log("✅ RES.DATA:", res.data);
-
+     
         const payload = pickPayload(res.data);
-        console.log("✅ PAYLOAD:", payload);
+       
 
         const apiWallet = payload?.wallet || payload?.walletData;
         if (apiWallet) updateWallet(apiWallet);
