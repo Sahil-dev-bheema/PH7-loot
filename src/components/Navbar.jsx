@@ -64,7 +64,7 @@ const Navbar = () => {
   }, []);
 
   const logout = () => {
-    contextLogout(); // Clear context + localStorage
+    contextLogout();
     navigate("/login", { replace: true });
   };
 
@@ -109,6 +109,24 @@ const Navbar = () => {
                   formatINR={formatINR}
                   onOpenChange={() => setProfileOpen(false)}
                 />
+
+
+                {/* Cart Icon */}
+                <button
+                  onClick={() => navigate("/cart")}
+                  className="relative p-2 rounded-full hover:bg-[#009688] transition"
+                >
+                  <FiShoppingCart className="text-xl text-slate-700" />
+
+                  {/* Badge (optional) */}
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 rounded-full">
+                    2
+                  </span>
+                </button>
+
+
+
+
 
                 {/* Profile */}
                 <div className="relative" ref={profileRef}>
@@ -168,6 +186,25 @@ const Navbar = () => {
                   formatINR={formatINR}
                   onOpenChange={() => setProfileOpen(false)}
                 />
+
+
+
+                {/* Cart Icon */}
+                <button
+                  onClick={() => navigate("/cart")}
+                  className="relative h-10 w-10 rounded-2xl grid place-items-center bg-slate-100 ring-1 ring-slate-200"
+                >
+                  <FiShoppingCart className="text-xl text-slate-700" />
+
+                  {/* Badge */}
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 rounded-full">
+                    2
+                  </span>
+                </button>
+
+
+
+
 
                 <button
                   type="button"
