@@ -1,13 +1,20 @@
 // src/pages/Login.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axiosInstance from "../utils/axiosInstance";
-import { useAuth } from "../context/AuthContext";
 import UserForget from "../components/userForgot/UserForget";
+
+// ❌ REMOVE axios + context
+// import axiosInstance from "../utils/axiosInstance";
+// import { useAuth } from "../context/AuthContext";
+
+// ✅ REDUX
+import { useDispatch } from "react-redux";
+import { loginUser } from "../features/authSlice";
+import { fetchUserProfile } from "../features/userSlice"; // 👈 IMPORTANT
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const dispatch = useDispatch();
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
@@ -33,40 +40,43 @@ const Login = () => {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setServerError("");
-  if (!validate()) return;
+    e.preventDefault();
+    setServerError("");
 
-  try {
-    setLoading(true);
+    if (!validate()) return;
 
-    const res = await axiosInstance.post("/user/login", form);
-    console.log("✅ login res.data:", res.data);
+    try {
+      setLoading(true);
 
-    const userData = res?.data?.user;
-    const token = res?.data?.token;
+      // ✅ LOGIN (Redux)
+      const user = await dispatch(loginUser(form)).unwrap();
 
-    if (!userData) throw new Error("User data missing");
-    if (!token) throw new Error("Token missing");
+      console.log("✅ login success:", user);
 
-    // ✅ store token
-    localStorage.setItem("user_token", token);
+      // ✅ FETCH PROFILE + WALLET (VERY IMPORTANT)
+      const userId =
+        user?._id || user?.id || user?.uid || user?.userId;
 
-    // ✅ pass backend user only
-    login(userData);
+      if (userId) {
+        dispatch(fetchUserProfile(userId));
+      }
 
-    
-navigate("/", { replace: true }); // navigate right away
+      navigate("/", { replace: true });
 
-  } catch (err) {
-    console.error("❌ login error:", err?.response?.data || err.message);
-    const message = err.response?.data?.message || err.message || "Login failed";
-    setServerError(message);
-    setErrors((prev) => ({ ...prev, password: "Incorrect password" }));
-  } finally {
-    setLoading(false);
-  }
-};
+    } catch (err) {
+      console.error("❌ login error:", err);
+
+      const message = err || "Login failed";
+      setServerError(message);
+
+      setErrors((prev) => ({
+        ...prev,
+        password: "Incorrect password",
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ---- UI CODE SAME AS YOURS ----
 
@@ -114,6 +124,7 @@ navigate("/", { replace: true }); // navigate right away
           )}
 
           <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+            {/* ✅ UI UNCHANGED */}
             <div>
               <label className={label}>Email</label>
               <input

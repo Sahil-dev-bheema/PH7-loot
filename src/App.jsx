@@ -19,25 +19,34 @@ import AdminRoute from "./routes/AdminRoute";
 
 import PlayNow from "./components/PlayNow";
 import Footer from "./components/Footer";
-import { AuthProvider } from "./context/AuthContext";
+
 import Packages from "./pages/admin/Packages";
 import Dashboard from "./pages/admin/Dashboard";
 import PackagePayment from "./pages/PackagePayment";
 import UserProfile from "./components/UserProfiles/UserProfile";
 import AdminProfile from "./pages/admin/AdminProfile";
 import { Toaster } from "react-hot-toast";
-
-import UserRoute from "./routes/UserRoute"; 
-import WithDrawl from "./components/UserProfiles/WithDrawl";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchUserProfile } from "./features/userSlice"; // adjust path if needed
+import UserRoute from "./routes/UserRoute";
 import WithdrawlBox from "./pages/admin/withdrawSection/WithdrawlBox.jsx";
-import AddToCart from "./redux/AddToCart.jsx";
+import AddToCart from "./components/Carts/AddToCart.jsx";
 
 /* ---------------- Layout ---------------- */
 const Layout = () => {
   const location = useLocation();
+ const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth);
 
   const hideNavbar = location.pathname.startsWith("/admin");
   const hideFooter = location.pathname.startsWith("/admin");
+
+  useEffect(() => {
+    if (user?._id || user?.id) {
+      dispatch(fetchUserProfile());
+    }
+  }, [dispatch, user]);
 
   return (
     <>
@@ -50,7 +59,7 @@ const Layout = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* ---------- User Protected Routes ---------- */}
+        {/* ---------- User Protected Routes (Redux-based) ---------- */}
         <Route
           path="/playnow"
           element={
@@ -59,6 +68,7 @@ const Layout = () => {
             </UserRoute>
           }
         />
+
         <Route
           path="/purchase"
           element={
@@ -67,6 +77,7 @@ const Layout = () => {
             </UserRoute>
           }
         />
+
         <Route
           path="/cart"
           element={
@@ -75,6 +86,7 @@ const Layout = () => {
             </UserRoute>
           }
         />
+
         <Route
           path="/profile"
           element={
@@ -84,10 +96,9 @@ const Layout = () => {
           }
         />
 
-        {/* ---------- Admin Login ---------- */}
+        {/* ---------- Admin Routes ---------- */}
         <Route path="/admin" element={<AdminLogin />} />
 
-        {/* ---------- Admin Protected Layout ---------- */}
         <Route
           path="/admin"
           element={
@@ -112,10 +123,11 @@ const Layout = () => {
 /* ---------------- App ---------------- */
 const App = () => (
   <BrowserRouter>
-    <AuthProvider>
-        <Toaster position="top-center" reverseOrder={false} />
-      <Layout />
-    </AuthProvider>
+    {/* ❌ REMOVED AuthProvider (Redux replaces it) */}
+
+    <Toaster position="top-center" reverseOrder={false} />
+
+    <Layout />
   </BrowserRouter>
 );
 

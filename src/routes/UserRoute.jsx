@@ -1,14 +1,14 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 export default function UserRoute({ children }) {
   const location = useLocation();
 
-  const token =
-    localStorage.getItem("user_token") || localStorage.getItem("token");
-  const userRaw = localStorage.getItem("user");
+  const user = useSelector((state) => state.auth.user);
+  const token = useSelector((state) => state.auth.token);
 
-  const isLoggedIn = Boolean(token && userRaw);
+  const isLoggedIn = Boolean(token && user);
 
   if (!isLoggedIn) {
     return (

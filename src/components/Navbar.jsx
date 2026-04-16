@@ -4,22 +4,32 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { FiMenu, FiX, FiUser, FiLogOut } from "react-icons/fi";
 import WalletDropdown from "./WalletDropdown";
 import logoImg from '../assets/images/logo.png';
-import { useAuth } from "../context/AuthContext";
 import { FiShoppingCart } from "react-icons/fi";
+
+// ❌ REMOVE
+// import { useAuth } from "../context/AuthContext";
+
+// ✅ ADD
+import { useSelector, useDispatch } from "react-redux";
+import { logout as reduxLogout } from "../features/authSlice";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const profileRef = useRef(null);
 
+  const dispatch = useDispatch();
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
-  // ✅ Use AuthContext
-  const { user, wallet, logout: contextLogout } = useAuth();
+  // ✅ REDUX STATE
+  const user = useSelector((state) => state.auth.user);
+  const wallet = useSelector((state) => state.user.wallet); // 👈 from userSlice
+
   const isAuth = !!user;
 
-  // Memoized display values
+  // ================= MEMO =================
   const displayName = useMemo(
     () => `${user?.first_name || ""} ${user?.last_name || ""}`.trim() || "User",
     [user]
@@ -46,13 +56,12 @@ const Navbar = () => {
 
   const formatINR = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
-  // Close menus on route change
+  // ================= EFFECTS =================
   useEffect(() => {
     setMenuOpen(false);
     setProfileOpen(false);
   }, [location.pathname]);
 
-  // Close profile dropdown when clicking outside
   useEffect(() => {
     const onClickOutside = (e) => {
       if (profileRef.current && !profileRef.current.contains(e.target)) {
@@ -63,19 +72,24 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
 
+  // ================= LOGOUT =================
   const logout = () => {
-    contextLogout();
+    dispatch(reduxLogout()); // ✅ Redux logout
     navigate("/login", { replace: true });
   };
 
+  // ================= UI (UNCHANGED) =================
   return (
     <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-slate-200">
       <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-8">
         <div className="h-20 sm:h-[70px] flex items-center justify-between gap-3">
+          
           {/* LOGO */}
           <button type="button" onClick={() => navigate("/")} className="text-2xl sm:text-2xl font-extrabold tracking-tight">
             <img src={logoImg} alt="logo" className="h-12" />
           </button>
+
+          {/* 👇 EVERYTHING BELOW IS SAME — NO UI CHANGE */}
 
           {/* DESKTOP RIGHT */}
           <div className="hidden md:flex items-center gap-4 relative">

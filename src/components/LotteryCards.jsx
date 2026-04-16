@@ -3,8 +3,10 @@ import { AiOutlineClockCircle } from "react-icons/ai";
 import { MdCurrencyRupee } from "react-icons/md";
 import { useNavigate, Link } from "react-router-dom";
 import axiosInstance from "../utils/axiosInstance";
-// import ResultModel from "../components/UserProfiles/ResultModel"; 
 
+// ✅ Redux
+import { useDispatch, useSelector } from "react-redux";
+import { setSelectedTicket } from "../features/ticketSlice";
 
 /* ---------- helper: countdown ---------- */
 const getTimeLeft = (date) => {
@@ -28,7 +30,6 @@ const isExpired = (date) => {
 
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 
-
 /* ---------- SKELETON ---------- */
 const TicketSkeleton = () => (
   <div className="rounded bg-white shadow p-1.5 animate-pulse">
@@ -43,31 +44,30 @@ const TicketSkeleton = () => (
 /* ---------- MAIN ---------- */
 const LotteryCards = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  // ✅ FIX: Use Redux (single source of truth)
+  const user = useSelector((state) => state.auth.user);
 
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
-  const [, setTick] = useState(0);
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch { }
-    }
-  }, []);
+  // force re-render for countdown
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(interval);
   }, []);
 
+  /* ---------- FETCH TICKETS ---------- */
   const fetchTickets = async () => {
     try {
       setLoading(true);
+
       const res = await axiosInstance.get("/pool");
-      if (!res.data?.success) throw new Error();
+
+      if (!res.data?.success) throw new Error("API failed");
 
       const apiTickets = res.data.data.map((t) => ({
         id: t.id,
@@ -75,14 +75,15 @@ const LotteryCards = () => {
         price: t.price,
         jackpot: t.jackpot,
         expiredAt: t.expire_at,
-        imageUrl: t.Imageurl ? `${baseURL}${t.Imageurl}` : "",
+        slug: t.slug || "",
+        imageUrl: t.Imageurl
+          ? `${baseURL}${t.Imageurl}`
+          : "",
       }));
-console.log(apiTickets);
-
 
       setTickets(apiTickets);
-    } catch {
-      console.error("Fetch error");
+    } catch (err) {
+      console.error("Fetch error:", err);
     } finally {
       setLoading(false);
     }
@@ -92,15 +93,31 @@ console.log(apiTickets);
     fetchTickets();
   }, []);
 
-  const handlePlayNow = (id) => {
-    if (!user) return navigate("/login");
-    navigate("/playnow", { state: { ticketId: id } });
+  /* ---------- PLAY ---------- */
+  const handlePlayNow = (item) => {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    dispatch(
+      setSelectedTicket({
+        id: item.id,
+        title: item.title,
+        price: item.price,
+        slug: item.slug,
+        expiredAt: item.expiredAt,
+      })
+    );
+
+    navigate("/playnow");
   };
 
   const activeTickets = tickets.filter(
     (item) => !isExpired(item.expiredAt)
   );
 
+  /* ---------- LOADING ---------- */
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto px-6 py-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -111,16 +128,16 @@ console.log(apiTickets);
     );
   }
 
+  /* ---------- UI ---------- */
   return (
     <div className="max-w-6xl mx-auto px-6 py-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {activeTickets.map((item) => (
           <div
             key={item.id}
-            className="group rounded bg-white shadow
-                       hover:shadow-md transition overflow-hidden"
+            className="group rounded bg-white shadow hover:shadow-md transition overflow-hidden"
           >
-            {/* STRIP */}
+            {/* TOP STRIP */}
             <div className="h-[2px] bg-gradient-to-r from-fuchsia-500 via-orange-400 to-yellow-400" />
 
             <div className="p-1.5">
@@ -144,8 +161,7 @@ console.log(apiTickets);
                 <h3 className="text-base font-bold text-gray-900 truncate">
                   {item.title}
                 </h3>
-                <span className="text-xs px-2 py-0.5 rounded-full
-                                 bg-emerald-100 text-emerald-700 font-bold">
+                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">
                   LIVE
                 </span>
               </div>
@@ -153,7 +169,9 @@ console.log(apiTickets);
               {/* INFO */}
               <div className="mt-1.5 rounded bg-gray-50 p-2 space-y-1.5">
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Jackpot</span>
+                  <span className="text-sm text-gray-600">
+                    Jackpot
+                  </span>
                   <span className="text-lg font-extrabold text-green-600">
                     ₹{Number(item.jackpot).toLocaleString("en-IN")}
                   </span>
@@ -188,15 +206,15 @@ console.log(apiTickets);
                 >
                   About →
                 </Link>
+
                 <button
-                  onClick={() => handlePlayNow(item.id)}
+                  onClick={() => handlePlayNow(item)}
                   className="w-24 px-3 py-1 text-sm font-bold text-white rounded-full
-             bg-gradient-to-r from-orange-500 to-pink-500
-             hover:scale-105 transition"
+                  bg-gradient-to-r from-orange-500 to-pink-500
+                  hover:scale-105 transition"
                 >
                   {user ? "Play" : "Login"}
                 </button>
-
               </div>
             </div>
           </div>

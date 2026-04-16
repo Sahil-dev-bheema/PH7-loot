@@ -2,23 +2,20 @@ import React, { useEffect, useMemo, useState } from "react";
 import axiosInstance from "../utils/axiosInstance";
 import lottery from "../assets/images/powerplay02/coins.jpg";
 import Payment from "../components/Payment";
-import { useAuth } from "../context/AuthContext";
+import { useSelector, useDispatch } from "react-redux";
+import { updateWallet } from "../features/userSlice";
 import { GiTwoCoins } from "react-icons/gi";
 import { FaRupeeSign } from "react-icons/fa";
+import toast from "react-hot-toast";
 
 function PackagePayment() {
-  const { updateWallet, user } = useAuth();
+  const dispatch = useDispatch();
 
-  const savedUser = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem("user") || "null");
-    } catch {
-      return null;
-    }
-  }, []);
+  /* ================= REDUX USER ================= */
+  const user = useSelector((state) => state.auth.user);
 
   const userId =
-    user?._id || user?.id || savedUser?._id || savedUser?.id || null;
+    user?._id || user?.id || user?.uid || user?.userId || null;
 
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +25,7 @@ function PackagePayment() {
   const [addMoneyOpen, setAddMoneyOpen] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState(null);
 
+  /* ================= FETCH PACKAGES ================= */
   const fetchPackages = async () => {
     try {
       setLoading(true);
@@ -52,6 +50,7 @@ function PackagePayment() {
   const filtered = useMemo(() => {
     const text = q.trim().toLowerCase();
     if (!text) return packages;
+
     return packages.filter((p) =>
       String(p?.package_name || "").toLowerCase().includes(text)
     );
@@ -65,9 +64,11 @@ function PackagePayment() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
+
         <h1 className="text-2xl md:text-3xl font-bold text-slate-900">
           Choose a Package
         </h1>
+
         <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/20 backdrop-blur px-3 py-1 text-sm font-semibold">
           <GiTwoCoins className="text-yellow-400 text-4xl" />
           <span className="text-xl">1 Coin</span>
@@ -76,6 +77,7 @@ function PackagePayment() {
           <span className="text-xl">1 Rupee</span>
         </div>
 
+        {/* ================= PACKAGES ================= */}
         {!loading && !err && (
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((pkg) => (
@@ -88,17 +90,16 @@ function PackagePayment() {
                   backgroundPosition: "center",
                 }}
               >
-                {/* Overlay */}
                 <div className="absolute inset-0 bg-black/45" />
 
                 <div className="relative h-full p-5 text-white flex flex-col justify-between">
-                  {/* Top */}
+
+                  {/* TOP */}
                   <div>
                     <h3 className="text-xl font-semibold">
                       {pkg.package_name}
                     </h3>
 
-                    {/* COIN = RUPEE BADGE */}
                     <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/20 backdrop-blur px-3 py-1 text-sm font-semibold">
                       <GiTwoCoins className="text-yellow-400 text-4xl" />
                       <span className="text-xl">1 Coin</span>
@@ -108,7 +109,7 @@ function PackagePayment() {
                     </div>
                   </div>
 
-                  {/* Bottom */}
+                  {/* BOTTOM */}
                   <div className="flex justify-between items-end">
                     <p className="flex items-center gap-2 text-2xl font-bold">
                       <GiTwoCoins className="text-yellow-400 text-4xl" />
@@ -123,13 +124,14 @@ function PackagePayment() {
                       Buy
                     </button>
                   </div>
+
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* PAYMENT MODAL */}
+        {/* ================= PAYMENT MODAL ================= */}
         <Payment
           open={addMoneyOpen}
           onClose={() => {
@@ -144,14 +146,22 @@ function PackagePayment() {
             selectedPkg?._id ||
             selectedPkg?.package_id
           }
-          onSubmit={({ amount }) => {
-            updateWallet((prev) => ({
-              ...prev,
-              cash: Number(prev?.cash ?? 0) + Number(amount),
-            }));
-            setAddMoneyOpen(false);
+          onSubmit={async ({ amount }) => {
+            try {
+              if (!amount) return;
+
+              // 🔥 REDUX WALLET UPDATE (ADD MONEY)
+            await dispatch(updateWallet(Number(amount))).unwrap();
+
+              setAddMoneyOpen(false);
+              setSelectedPkg(null);
+            } catch (err) {
+              console.error(err);
+              toast.error("Failed to update wallet");
+            }
           }}
         />
+
       </div>
     </div>
   );

@@ -1,21 +1,6 @@
 import React, { useState } from "react";
 import axiosInstance from "../utils/axiosInstance";
-
-const cn = (...a) => a.filter(Boolean).join(" ");
-
-const isValidUpi = (upi) =>
-  /^[a-zA-Z0-9.\-_]{2,}@[a-zA-Z]{2,}$/.test(String(upi || "").trim());
-
-function loadRazorpay() {
-  return new Promise((resolve) => {
-    if (window.Razorpay) return resolve(true);
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-}
+import toast from "react-hot-toast";
 
 export default function Payment({
   open,
@@ -23,185 +8,132 @@ export default function Payment({
   onSubmit,
   userId = 1,
   amount = 0,
-  title = "Selected Package",
+  title = "Payment",
   package_id = null,
 }) {
-  const [upiId, setUpiId] = useState("");
-  const [provider, setProvider] = useState("");
   const [loading, setLoading] = useState(false);
-  const [touched, setTouched] = useState({});
 
   if (!open) return null;
 
-  const markTouched = (k) => setTouched((p) => ({ ...p, [k]: true }));
+  const handlePay = async () => {
+    try {
+      setLoading(true);
 
-  const errors = {
-    upiId: !upiId ? "UPI ID required" : !isValidUpi(upiId) ? "Invalid UPI ID" : null,
-    provider: !provider ? "Select payment app" : null,
-    package_id: !package_id ? "Package not selected" : null,
-    amount: !amount || Number(amount) <= 0 ? "Invalid amount" : null,
-  };
+      // ❌ COMMENTED OUT RAZORPAY FLOW (DISABLED)
 
-  const close = () => {
-    if (loading) return;
-    setUpiId("");
-    setProvider("");
-    setTouched({});
-    onClose?.();
-  };
+      /*
+      const ok = await loadRazorpay();
 
-const handlePay = async () => {
-  if (!package_id) {
-    alert("Package not selected");
-    return;
-  }
+      if (!ok || !window.Razorpay) {
+        toast.error("Razorpay failed to load");
+        setLoading(false);
+        return;
+      }
 
-  const amt = Number(amount);
-  if (!amt || amt <= 0) {
-    alert("Invalid amount");
-    return;
-  }
+      const { data } = await axiosInstance.post("/payment/create-order", {
+        amount,
+        userId,
+        currency: "INR",
+      });
 
-  try {
-    setLoading(true);
+      const order = data?.order;
 
-    const ok = await loadRazorpay();
-    if (!ok) {
-      alert("Razorpay SDK failed to load. Check internet/adblock.");
-      return;
-    }
+      if (!order?.id) {
+        toast.error("Order not created");
+        setLoading(false);
+        return;
+      }
 
-    // ✅ Create order (your backend keys)
-    const { data } = await axiosInstance.post("/payment/create-order", {
-      amount: amt,
-      userId,
-      currency: "INR",
-    });
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: order.currency,
+        name: "App Payment",
+        description: title,
+        order_id: order.id,
 
-    const orderId = data?.orderId || data?.order?.id;
-    const currency = data?.currency || data?.order?.currency || "INR";
-
-    if (!data?.success || !orderId) {
-      alert(data?.message || "Order creation failed");
-      return;
-    }
-
-    const key = import.meta.env.VITE_RAZORPAY_KEY_ID;
-    if (!key) {
-      alert("Missing VITE_RAZORPAY_KEY_ID in .env");
-      return;
-    }
-
-    const rpAmount = Number(data?.order?.amount) || Math.round(amt * 100);
-
-    const options = {
-      key,
-      amount: rpAmount,
-      currency,
-      name: "PH7-Loot",
-      description: `Buy Package: ${title}`,
-      order_id: orderId,
-      notes: {
-        userId: String(userId),
-        package_id: String(package_id),
-        title,
-      },
-      theme: { color: "#14b8a6" },
-
-      handler: async function (response) {
-        try {
-          const verifyRes = await axiosInstance.post("/payment/verify", {
-            razorpay_order_id: response?.razorpay_order_id,
-            razorpay_payment_id: response?.razorpay_payment_id,
-            razorpay_signature: response?.razorpay_signature,
+        handler: async function (response) {
+          await axiosInstance.post("/payment/verify", {
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
             userId,
             package_id,
           });
 
-          if (verifyRes?.data?.success) {
-            alert("✅ Payment Successful");
+          toast.success("Payment Successful");
 
-            onSubmit?.({
-              userId,
-              package_id,
-              amount: amt,
-              razorpay_order_id: response?.razorpay_order_id,
-              razorpay_payment_id: response?.razorpay_payment_id,
-            });
+          onSubmit?.({
+            ...response,
+            amount,
+          });
 
-            close();
-          } else {
-            alert(verifyRes?.data?.message || "Payment verification failed");
-          }
-        } catch (err) {
-          alert(err?.response?.data?.message || err?.message || "Verify error");
-        } finally {
+          onClose?.();
           setLoading(false);
-        }
-      },
+        },
 
-      modal: {
-        ondismiss: () => setLoading(false),
-      },
-    };
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+          },
+        },
 
-    new window.Razorpay(options).open();
-  } catch (err) {
-    alert(err?.response?.data?.message || err?.message || "Payment error");
-    setLoading(false);
-  }
-};
+        theme: {
+          color: "#14b8a6",
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+      */
+
+      // ✅ FAKE PAYMENT FLOW (DUMMY SUCCESS)
+      await new Promise((res) => setTimeout(res, 1500));
+
+      const fakeResponse = {
+        razorpay_payment_id: "fake_pay_" + Date.now(),
+        razorpay_order_id: "fake_order_" + Date.now(),
+        razorpay_signature: "fake_signature",
+        amount,
+        status: "success",
+      };
+
+      console.log("🟢 Mock Payment Success:", fakeResponse);
+
+      toast.success("Payment Successful (Mock)");
+
+      onSubmit?.(fakeResponse);
+      onClose?.();
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Payment failed (mock)");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[9999]">
-      <div className="absolute inset-0 bg-black/40" onClick={close} />
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      <div className="absolute inset-0 flex items-center justify-center p-4">
-        <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border">
-          {/* Header */}
-          <div className="px-5 py-4 border-b flex justify-between">
-            <div>
-              <p className="font-bold text-gray-900">Payment</p>
-              <p className="text-xs text-gray-500">Buy Package</p>
-            </div>
+      <div className="flex items-center justify-center h-full">
+        <div className="bg-white p-5 rounded-xl w-[400px] z-50">
 
-            <button
-              onClick={close}
-              disabled={loading}
-              className="text-sm px-3 py-1 border rounded-lg"
-              type="button"
-            >
-              Close
-            </button>
-          </div>
+          <h2 className="text-lg font-bold">{title}</h2>
 
-          {/* Body */}
-         <div className="p-5">
-  <p className="text-sm text-gray-600">Purchasing:</p>
-  <p className="font-bold text-lg text-gray-900">{title}</p>
+          <p className="mt-2 text-gray-600">
+            Amount: ₹{amount}
+          </p>
 
-  <div className="mt-4 rounded-xl border bg-gray-50 p-4">
-    <p className="text-xs text-gray-500">Amount</p>
-    <p className="text-3xl font-bold">
-      ₹{Number(amount).toLocaleString("en-IN")}
-    </p>
+          <button
+            onClick={handlePay}
+            disabled={loading}
+            className="mt-5 w-full bg-teal-500 text-white py-2 rounded"
+          >
+            {loading ? "Processing..." : "Pay Now"}
+          </button>
 
-   
-  </div>
-
-  <button
-    onClick={handlePay}
-    disabled={loading}
-    className="w-full mt-6 py-3 rounded-xl text-white font-semibold bg-teal-500 hover:bg-teal-600 disabled:opacity-60"
-    type="button"
-  >
-    {loading ? "Opening Razorpay..." : "Pay Now"}
-  </button>
-
-  <p className="mt-3 text-xs text-gray-500 text-center">
-    You will be redirected to Razorpay checkout.
-  </p>
-</div>
         </div>
       </div>
     </div>

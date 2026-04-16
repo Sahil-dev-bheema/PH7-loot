@@ -1,12 +1,19 @@
 // src/pages/Register.jsx
 import React, { useMemo, useState } from "react";
-import axiosInstance from "../utils/axiosInstance";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+
+// ❌ REMOVE
+// import axiosInstance from "../utils/axiosInstance";
+// import { useAuth } from "../context/AuthContext";
+
+// ✅ ADD
+import { useDispatch } from "react-redux";
+import { registerUser } from "../features/authSlice";
 
 const Register = () => {
-  const { login } = useAuth();
   const navigate = useNavigate();
+  const dispatch = useDispatch(); // ✅ Redux
+
   const [showPassword, setShowPassword] = useState(false);
 
   const [form, setForm] = useState({
@@ -72,7 +79,6 @@ const Register = () => {
 
     setForm((p) => ({ ...p, [name]: value }));
 
-    // live validate
     const err = validateField(name, value);
     setErrors((p) => ({ ...p, [name]: err }));
 
@@ -94,12 +100,12 @@ const Register = () => {
     if (/[A-Z]/.test(p)) score++;
     if (/[0-9]/.test(p)) score++;
     if (/[^A-Za-z0-9]/.test(p)) score++;
-    return score; // 0..4
+    return score;
   }, [form.password]);
 
   const strengthLabel = ["Weak", "Fair", "Good", "Strong", "Very strong"][strength];
 
-  /* ---------------- SUBMIT ---------------- */
+  /* ---------------- SUBMIT (REDUX) ---------------- */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setServerError("");
@@ -109,7 +115,6 @@ const Register = () => {
     try {
       setLoading(true);
 
-      // trimmed payload
       const payload = {
         ...form,
         title: form.title.trim(),
@@ -117,30 +122,18 @@ const Register = () => {
         last_name: form.last_name.trim(),
         email: form.email.trim(),
         password: form.password,
+        platform:"Lottery"
       };
 
-      const res = await axiosInstance.post("/user/register", payload);
-   
+      // ✅ Redux API call
+      await dispatch(registerUser(payload)).unwrap();
 
-      const userData = res.data.user;
-      const walletData = {
-        cash: 0,
-        bonus: 50, 
-      };
-
-      login(userData, walletData);
-
-      
-      localStorage.setItem("user_token", JSON.stringify(res.data.token));
-      
-
-      window.dispatchEvent(new Event("authChanged"));
       navigate("/");
+
     } catch (err) {
-      console.log(err)
-      
+      console.log(err);
       setServerError(
-        err.response?.data?.message || "Registration failed. Please try again."
+        err || "Registration failed. Please try again."
       );
     } finally {
       setLoading(false);
@@ -159,13 +152,17 @@ const Register = () => {
         : "border-gray-200 hover:border-gray-300"
     }`;
 
-  const label = "text-[11px] font-semibold text-gray-700 uppercase tracking-wider";
+  const label =
+    "text-[11px] font-semibold text-gray-700 uppercase tracking-wider";
 
-  const nameSectionHasError = !!(errors.title || errors.first_name || errors.last_name);
+  const nameSectionHasError =
+    !!(errors.title || errors.first_name || errors.last_name);
 
+  /* ---------------- UI (UNCHANGED) ---------------- */
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#e9fbf9] via-white to-[#f6fffe] flex items-center justify-center px-4 py-4">
       <div className="w-full max-w-5xl grid md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl border border-white/40 bg-white/70 backdrop-blur-md">
+        
         {/* LEFT SIDE */}
         <div className="hidden md:flex flex-col justify-between bg-gradient-to-br from-[#50c2b4] to-[#2f8f84] p-8 text-white">
           <div>
@@ -200,6 +197,7 @@ const Register = () => {
           )}
 
           <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+            {/* UI FULLY SAME — NOT TOUCHED */}
             {/* TITLE + FIRST NAME + LAST NAME (SECTION BORDER RED IF ANY ERROR) */}
             <div
               className={[

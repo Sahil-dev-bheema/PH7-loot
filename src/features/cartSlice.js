@@ -1,16 +1,14 @@
-// src/redux/slices/cartSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axiosInstance from "../utils/axiosInstance";
 
-// ✅ ADD TO CART
+// ✅ ADD TO CART (UPDATED)
 export const addToCartAPI = createAsyncThunk(
   "cart/addToCartAPI",
-  async ({ pool_id, ticket_price, ticket_quantity }, { rejectWithValue }) => {
+  async ({ pool_id, tickets }, { rejectWithValue }) => {
     try {
       const res = await axiosInstance.post("/cart/add_to_cart", {
         pool_id,
-        ticket_price,
-        ticket_quantity,
+        tickets, // ✅ FULL ARRAY SENT
       });
 
       return res.data;
@@ -26,7 +24,7 @@ export const removeCartItemAPI = createAsyncThunk(
   async ({ pool_id }, { rejectWithValue }) => {
     try {
       await axiosInstance.delete("/cart/remove_cartItems", {
-        data: { pool_id }, // ✅ correct for DELETE
+        data: { pool_id },
       });
 
       return { pool_id };
@@ -36,21 +34,14 @@ export const removeCartItemAPI = createAsyncThunk(
   }
 );
 
-// ✅ GET CART (🔥 FIXED)
+// ✅ GET CART
 export const getCartAPI = createAsyncThunk(
   "cart/getCartAPI",
   async (_, { rejectWithValue }) => {
     try {
       const res = await axiosInstance.get("/cart/get_cartItems");
 
-      console.log("CART API RESPONSE:", res.data);
-
-      // ✅ ALWAYS RETURN ARRAY
-      return (
-        res.data?.items ||
-      
-        []
-      );
+      return res.data?.items || [];
     } catch (err) {
       return rejectWithValue(err?.response?.data || err.message);
     }
@@ -81,24 +72,21 @@ const cartSlice = createSlice({
       })
       .addCase(getCartAPI.fulfilled, (state, action) => {
         state.loading = false;
-
-        // ✅ FORCE ARRAY SAFETY
         state.items = Array.isArray(action.payload)
           ? action.payload
-          : action.payload?.items || [];
+          : [];
       })
       .addCase(getCartAPI.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
 
-      // ✅ ADD TO CART (FIXED)
+      // ✅ ADD TO CART
       .addCase(addToCartAPI.fulfilled, (state, action) => {
         state.loading = false;
 
         const newItem =
-          action.payload?.data || // if backend sends item
-          action.meta.arg;        // fallback
+          action.payload?.data || action.meta.arg;
 
         const exists = state.items.find(
           (i) => i.pool_id === newItem.pool_id
