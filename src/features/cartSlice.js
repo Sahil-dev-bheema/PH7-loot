@@ -37,9 +37,9 @@ export const removeCartItemAPI = createAsyncThunk(
 // ✅ GET CART
 export const getCartAPI = createAsyncThunk(
   "cart/getCartAPI",
-  async (_, { rejectWithValue }) => {
+  async (userId, { rejectWithValue }) => {
     try {
-      const res = await axiosInstance.get("/cart/get_cartItems");
+      const res = await axiosInstance.get(`/cart/get_cartItems/${userId}`);
 
       return res.data?.items || [];
     } catch (err) {

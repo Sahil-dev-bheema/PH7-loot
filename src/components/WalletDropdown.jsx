@@ -2,16 +2,15 @@ import React, { useMemo, useState } from "react";
 import { HiOutlineWallet, HiXMark } from "react-icons/hi2";
 import { GiTwoCoins } from "react-icons/gi";
 import { useNavigate } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 
 import Payment from "./Payment";
 import WithDrawl from "./UserProfiles/WithDrawl";
 
 import {
-  fetchWallet,
-  updateWallet,
-  updateWalletLocal,
-} from "../features/userSlice";
+  useGetWalletQuery,
+  useUpdateWalletMutation,
+} from "../service/userApi";
 
 const WalletDropdown = () => {
   const [open, setOpen] = useState(false);
@@ -19,33 +18,38 @@ const WalletDropdown = () => {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
 
   const navigate = useNavigate();
-  const dispatch = useDispatch();
 
   const { user } = useSelector((state) => state.auth);
-  const { wallet } = useSelector((state) => state.user);
-
   const isLoggedIn = !!user;
 
-  const safeNumber = (val) => {
-    const num = Number(val);
-    return isNaN(num) ? 0 : num;
-  };
+  const userId = user?.id || user?._id;
 
-  const walletBalance = safeNumber(wallet?.cash);
-  const walletBonus = safeNumber(wallet?.bonus);
+  /* ================= WALLET QUERY ================= */
+  const {
+    data: wallet,
+    isLoading,
+    isFetching,
+  } = useGetWalletQuery(userId, {
+    skip: !userId,
+  });
 
-  const totalAmount = useMemo(
-    () => walletBalance + walletBonus,
-    [walletBalance, walletBonus]
-  );
+  /* ================= MUTATION ================= */
+  const [updateWallet] = useUpdateWalletMutation();
 
+  /* ================= SAFE VALUES ================= */
+  const walletBalance = Number(wallet?.cash ?? 0);
+  const walletBonus = Number(wallet?.bonus ?? 0);
+
+  const totalAmount = useMemo(() => {
+    return walletBalance + walletBonus;
+  }, [walletBalance, walletBonus]);
+
+  /* ================= HANDLERS ================= */
   const handleOpen = () => {
     if (!isLoggedIn) {
       navigate("/login");
       return;
     }
-
-    dispatch(fetchWallet()); // ✅ ONLY API CALL HERE
     setOpen((v) => !v);
   };
 
@@ -63,7 +67,13 @@ const WalletDropdown = () => {
 
           <div className="flex items-center gap-2">
             <GiTwoCoins className="text-yellow-500 text-4xl" />
-            <span>{isLoggedIn ? totalAmount : "Login"}</span>
+            <span>
+              {isLoggedIn
+                ? isLoading
+                  ? "..."
+                  : totalAmount
+                : "Login"}
+            </span>
           </div>
 
           <span className="ml-1 text-[11px] text-gray-400">▼</span>
@@ -79,6 +89,7 @@ const WalletDropdown = () => {
           >
             <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
 
+              {/* HEADER */}
               <div className="relative px-5 pt-5 pb-4">
                 <button
                   onClick={() => setOpen(false)}
@@ -93,9 +104,10 @@ const WalletDropdown = () => {
 
                 <p className="text-base font-bold text-gray-900 flex gap-2 items-center">
                   <GiTwoCoins className="text-yellow-500 text-4xl" />
-                  <span>{totalAmount}</span>
+                  <span>{isFetching ? "..." : totalAmount}</span>
                 </p>
 
+                {/* BALANCES */}
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <div className="rounded-xl border p-3">
                     <p className="text-xs text-gray-500">Main Balance</p>
@@ -111,6 +123,7 @@ const WalletDropdown = () => {
                 </div>
               </div>
 
+              {/* ACTIONS */}
               <div className="px-5 py-4 border-t flex gap-3">
                 <button
                   onClick={() => {
@@ -125,7 +138,7 @@ const WalletDropdown = () => {
                 <button
                   onClick={() => {
                     setOpen(false);
-                    navigate("/purchase");
+                    navigate("/purchase")
                   }}
                   className="flex-1 py-2.5 text-sm font-semibold rounded-xl bg-teal-500 text-white"
                 >
@@ -137,21 +150,24 @@ const WalletDropdown = () => {
         )}
       </div>
 
-      {/* PAYMENT */}
+      {/* PAYMENT MODAL */}
       <Payment
         open={addMoneyOpen}
         onClose={() => setAddMoneyOpen(false)}
-        onSubmit={(payload) => {
+        onSubmit={async (payload) => {
           const amount = Number(payload?.amount ?? 0);
           if (!amount || amount < 100) return;
 
-          dispatch(updateWalletLocal(amount)); // instant UI
-          dispatch(updateWallet(amount)); // backend sync
-
-          setAddMoneyOpen(false);
+          try {
+            await updateWallet({ userId, amount }).unwrap();
+            setAddMoneyOpen(false);
+          } catch (err) {
+            console.error("Wallet update failed", err);
+          }
         }}
       />
 
+      {/* WITHDRAW */}
       <WithDrawl
         open={withdrawOpen}
         onClose={() => setWithdrawOpen(false)}

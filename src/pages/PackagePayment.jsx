@@ -2,21 +2,31 @@ import React, { useEffect, useMemo, useState } from "react";
 import axiosInstance from "../utils/axiosInstance";
 import lottery from "../assets/images/powerplay02/coins.jpg";
 import Payment from "../components/Payment";
-import { useSelector, useDispatch } from "react-redux";
-import { updateWallet } from "../features/userSlice";
+import { useSelector } from "react-redux";
 import { GiTwoCoins } from "react-icons/gi";
 import { FaRupeeSign } from "react-icons/fa";
 import toast from "react-hot-toast";
 
-function PackagePayment() {
-  const dispatch = useDispatch();
+/* ✅ RTK QUERY */
+import {
+  useGetWalletQuery,
+  useUpdateWalletMutation,
+} from "../service/userApi";
 
-  /* ================= REDUX USER ================= */
+function PackagePayment() {
   const user = useSelector((state) => state.auth.user);
 
   const userId =
     user?._id || user?.id || user?.uid || user?.userId || null;
 
+  /* ================= RTK QUERY WALLET ================= */
+  const { refetch: refetchWallet } = useGetWalletQuery(userId, {
+    skip: !userId,
+  });
+
+  const [updateWallet] = useUpdateWalletMutation();
+
+  /* ================= LOCAL STATE ================= */
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -35,8 +45,8 @@ function PackagePayment() {
     } catch (e) {
       setErr(
         e?.response?.data?.message ||
-        e?.message ||
-        "Failed to load packages."
+          e?.message ||
+          "Failed to load packages."
       );
     } finally {
       setLoading(false);
@@ -150,11 +160,19 @@ function PackagePayment() {
             try {
               if (!amount) return;
 
-              // 🔥 REDUX WALLET UPDATE (ADD MONEY)
-            await dispatch(updateWallet(Number(amount))).unwrap();
+              /* ✅ RTK QUERY WALLET UPDATE */
+              await updateWallet({
+                userId,
+                amount: Number(amount),
+              });
+
+              /* 🔥 ensure latest wallet sync */
+              await refetchWallet();
 
               setAddMoneyOpen(false);
               setSelectedPkg(null);
+
+              toast.success("Wallet updated successfully");
             } catch (err) {
               console.error(err);
               toast.error("Failed to update wallet");

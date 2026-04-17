@@ -1,53 +1,46 @@
 import { configureStore, combineReducers } from "@reduxjs/toolkit";
+import { persistStore, persistReducer } from "redux-persist";
+import storage from "redux-persist/lib/storage";
+
+import { userApi } from "../service/userApi";
 
 import cartReducer from "../features/cartSlice";
 import ticketReducer from "../features/ticketSlice";
 import authReducer from "../features/authSlice";
-import userReducer from "../features/userSlice"; // ✅ ADD THIS
-
-import {
-  persistStore,
-  persistReducer,
-} from "redux-persist";
-
-import storage from "redux-persist/lib/storage";
+import userReducer from "../features/userSlice";
 
 // =======================
 // 🔐 Persist configs
 // =======================
 
-// Cart persists only items
 const cartPersistConfig = {
   key: "cart",
   storage,
   whitelist: ["items"],
 };
 
-// ✅ Auth: ONLY user + token
 const authPersistConfig = {
   key: "auth",
   storage,
-  whitelist: ["user", "token"], // ❌ removed wallet
+  whitelist: ["user", "token"],
 };
 
-// ✅ User: persist wallet only (optional but recommended)
-const userPersistConfig = {
-  key: "user",
-  storage,
-  whitelist: ["wallet"], // persist wallet balance
-};
+// ❌ IMPORTANT CHANGE: REMOVE wallet from persistence
+// (wallet will now be RTK Query cache only)
 
 // =======================
 // Root Reducer
 // =======================
 const rootReducer = combineReducers({
   cart: persistReducer(cartPersistConfig, cartReducer),
-
   auth: persistReducer(authPersistConfig, authReducer),
 
-  user: persistReducer(userPersistConfig, userReducer), // ✅ ADD THIS
+  user: userReducer, // keep user slice for profile only (NO wallet state)
 
   ticket: ticketReducer,
+
+  // RTK Query reducer
+  [userApi.reducerPath]: userApi.reducer,
 });
 
 // =======================
@@ -55,10 +48,11 @@ const rootReducer = combineReducers({
 // =======================
 export const store = configureStore({
   reducer: rootReducer,
+
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: false,
-    }),
+    }).concat(userApi.middleware), // ✅ IMPORTANT
 });
 
 // =======================

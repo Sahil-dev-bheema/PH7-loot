@@ -37,6 +37,8 @@ export const registerUser = createAsyncThunk(
       return {
         user: data.user,
         token: data.token,
+        bonus : 50,
+        
       };
     } catch (err) {
       return rejectWithValue(err.response?.data || err.message);

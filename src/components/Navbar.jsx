@@ -3,58 +3,98 @@ import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FiMenu, FiX, FiUser, FiLogOut } from "react-icons/fi";
 import WalletDropdown from "./WalletDropdown";
-import logoImg from '../assets/images/logo.png';
+import logoImg from "../assets/images/logo.png";
 import { FiShoppingCart } from "react-icons/fi";
 
-// ❌ REMOVE
-// import { useAuth } from "../context/AuthContext";
-
-// ✅ ADD
 import { useSelector, useDispatch } from "react-redux";
 import { logout as reduxLogout } from "../features/authSlice";
+
+/* ✅ RTK QUERY */
+import { useGetWalletQuery } from "../service/userApi";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const profileRef = useRef(null);
-
   const dispatch = useDispatch();
+
+const { items } = useSelector((state) => state.cart);
+const cartCount = useMemo(() => {
+  if (!Array.isArray(items)) return 0;
+
+  return items.reduce((sum, item) => {
+    return sum + Number(item.ticket_quantity ?? item.qty ?? 1);
+  }, 0);
+}, [items]);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
-  // ✅ REDUX STATE
+  // ✅ USER
   const user = useSelector((state) => state.auth.user);
-  const wallet = useSelector((state) => state.user.wallet); // 👈 from userSlice
-
   const isAuth = !!user;
+
+  // ✅ USER ID
+  const userId =
+    user?._id || user?.id || user?.uid || user?.userId;
+
+  /* ================= WALLET (RTK QUERY) ================= */
+  const { data: walletData } = useGetWalletQuery(userId, {
+    skip: !userId,
+  });
+
+  /* ================= FALLBACK (OLD REDUX) ================= */
+  const reduxWallet = useSelector((state) => state.user.wallet);
+
+  /* ================= FINAL WALLET ================= */
+  const wallet = walletData || reduxWallet;
 
   // ================= MEMO =================
   const displayName = useMemo(
-    () => `${user?.first_name || ""} ${user?.last_name || ""}`.trim() || "User",
+    () =>
+      `${user?.first_name || ""} ${user?.last_name || ""}`.trim() ||
+      "User",
     [user]
   );
 
   const firstName = useMemo(() => {
-    const n = user?.first_name || displayName.split(" ")[0] || "User";
+    const n =
+      user?.first_name || displayName.split(" ")[0] || "User";
     return n.trim() || "User";
   }, [user, displayName]);
 
-  const displayEmail = useMemo(() => user?.email || "", [user]);
+  const displayEmail = useMemo(
+    () => user?.email || "",
+    [user]
+  );
 
   const avatarUrl = useMemo(() => {
     if (!user?.avatar) return null;
     if (/^https?:\/\//i.test(user.avatar)) return user.avatar;
+
     const API_BASE = import.meta.env.VITE_API_BASE || "";
     if (!API_BASE) return user.avatar;
-    return user.avatar.startsWith("/") ? `${API_BASE}${user.avatar}` : `${API_BASE}/${user.avatar}`;
+
+    return user.avatar.startsWith("/")
+      ? `${API_BASE}${user.avatar}`
+      : `${API_BASE}/${user.avatar}`;
   }, [user]);
 
-  const walletBalance = useMemo(() => Number(wallet?.cash ?? 0), [wallet]);
-  const walletBonus = useMemo(() => Number(wallet?.bonus ?? 0), [wallet]);
+  /* ================= WALLET VALUES ================= */
+  const walletBalance = useMemo(
+    () => Number(wallet?.cash ?? 0),
+    [wallet]
+  );
+
+  const walletBonus = useMemo(
+    () => Number(wallet?.bonus ?? 0),
+    [wallet]
+  );
+
   const totalAmount = walletBalance + walletBonus;
 
-  const formatINR = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
+  const formatINR = (value) =>
+    `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
   // ================= EFFECTS =================
   useEffect(() => {
@@ -64,17 +104,22 @@ const Navbar = () => {
 
   useEffect(() => {
     const onClickOutside = (e) => {
-      if (profileRef.current && !profileRef.current.contains(e.target)) {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(e.target)
+      ) {
         setProfileOpen(false);
       }
     };
+
     document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
+    return () =>
+      document.removeEventListener("mousedown", onClickOutside);
   }, []);
 
   // ================= LOGOUT =================
   const logout = () => {
-    dispatch(reduxLogout()); // ✅ Redux logout
+    dispatch(reduxLogout());
     navigate("/login", { replace: true });
   };
 
@@ -83,13 +128,15 @@ const Navbar = () => {
     <nav className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-slate-200">
       <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-8">
         <div className="h-20 sm:h-[70px] flex items-center justify-between gap-3">
-          
+
           {/* LOGO */}
-          <button type="button" onClick={() => navigate("/")} className="text-2xl sm:text-2xl font-extrabold tracking-tight">
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="text-2xl sm:text-2xl font-extrabold tracking-tight"
+          >
             <img src={logoImg} alt="logo" className="h-12" />
           </button>
-
-          {/* 👇 EVERYTHING BELOW IS SAME — NO UI CHANGE */}
 
           {/* DESKTOP RIGHT */}
           <div className="hidden md:flex items-center gap-4 relative">
@@ -112,7 +159,10 @@ const Navbar = () => {
             ) : (
               <div className="relative flex items-center gap-3">
                 <p className="text-sm font-semibold text-slate-800 hidden lg:block">
-                  Hey, <span className="text-teal-600">{firstName}</span>
+                  Hey,{" "}
+                  <span className="text-teal-600">
+                    {firstName}
+                  </span>
                 </p>
 
                 {/* Wallet */}
@@ -121,9 +171,10 @@ const Navbar = () => {
                   walletBalance={walletBalance}
                   walletBonus={walletBonus}
                   formatINR={formatINR}
-                  onOpenChange={() => setProfileOpen(false)}
+                  onOpenChange={() =>
+                    setProfileOpen(false)
+                  }
                 />
-
 
                 {/* Cart Icon */}
                 <button
@@ -131,22 +182,23 @@ const Navbar = () => {
                   className="relative p-2 rounded-full hover:bg-[#009688] transition"
                 >
                   <FiShoppingCart className="text-xl text-slate-700" />
-
-                  {/* Badge (optional) */}
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 rounded-full">
-                    2
-                  </span>
+                  {cartCount > 0 && (
+  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 rounded-full">
+    {cartCount}
+  </span>
+)}
                 </button>
 
-
-
-
-
                 {/* Profile */}
-                <div className="relative" ref={profileRef}>
+                <div
+                  className="relative"
+                  ref={profileRef}
+                >
                   <button
                     type="button"
-                    onClick={() => setProfileOpen((p) => !p)}
+                    onClick={() =>
+                      setProfileOpen((p) => !p)
+                    }
                     className="flex items-center gap-3 rounded-2xl px-2.5 py-2 hover:bg-slate-100 transition max-w-[280px]"
                   >
                     {avatarUrl ? (
@@ -162,15 +214,21 @@ const Navbar = () => {
                     )}
 
                     <div className="min-w-0 text-left">
-                      <p className="text-sm font-semibold text-slate-900 truncate">{displayName}</p>
-                      <p className="text-xs text-slate-500 truncate">{displayEmail}</p>
+                      <p className="text-sm font-semibold text-slate-900 truncate">
+                        {displayName}
+                      </p>
+                      <p className="text-xs text-slate-500 truncate">
+                        {displayEmail}
+                      </p>
                     </div>
                   </button>
 
                   {profileOpen && (
                     <div className="absolute right-0 top-14 w-48 bg-white border border-slate-200 rounded-2xl shadow-lg z-50 overflow-hidden">
                       <button
-                        onClick={() => navigate("/profile")}
+                        onClick={() =>
+                          navigate("/profile")
+                        }
                         className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50"
                       >
                         Profile
@@ -198,52 +256,62 @@ const Navbar = () => {
                   walletBalance={walletBalance}
                   walletBonus={walletBonus}
                   formatINR={formatINR}
-                  onOpenChange={() => setProfileOpen(false)}
+                  onOpenChange={() =>
+                    setProfileOpen(false)
+                  }
                 />
 
-
-
-                {/* Cart Icon */}
                 <button
                   onClick={() => navigate("/cart")}
                   className="relative h-10 w-10 rounded-2xl grid place-items-center bg-slate-100 ring-1 ring-slate-200"
                 >
                   <FiShoppingCart className="text-xl text-slate-700" />
-
-                  {/* Badge */}
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 rounded-full">
                     2
                   </span>
                 </button>
 
-
-
-
-
                 <button
                   type="button"
-                  onClick={() => setMenuOpen((v) => !v)}
+                  onClick={() =>
+                    setMenuOpen((v) => !v)
+                  }
                   className="h-10 w-10 rounded-2xl grid place-items-center bg-slate-100 ring-1 ring-slate-200"
-                  aria-label="Open menu"
                 >
-                  {menuOpen ? <FiX className="text-xl" /> : <FiMenu className="text-xl" />}
+                  {menuOpen ? (
+                    <FiX className="text-xl" />
+                  ) : (
+                    <FiMenu className="text-xl" />
+                  )}
                 </button>
               </>
             ) : (
               <button
                 type="button"
-                onClick={() => setMenuOpen((v) => !v)}
+                onClick={() =>
+                  setMenuOpen((v) => !v)
+                }
                 className="h-10 w-10 rounded-2xl grid place-items-center bg-slate-100 ring-1 ring-slate-200"
-                aria-label="Open menu"
               >
-                {menuOpen ? <FiX className="text-xl" /> : <FiMenu className="text-xl" />}
+                {menuOpen ? (
+                  <FiX className="text-xl" />
+                ) : (
+                  <FiMenu className="text-xl" />
+                )}
               </button>
             )}
           </div>
         </div>
 
         {/* MOBILE MENU */}
-        <div className={["md:hidden overflow-hidden transition-all duration-200", menuOpen ? "max-h-[520px] pb-4" : "max-h-0"].join(" ")}>
+        <div
+          className={[
+            "md:hidden overflow-hidden transition-all duration-200",
+            menuOpen
+              ? "max-h-[520px] pb-4"
+              : "max-h-0",
+          ].join(" ")}
+        >
           <div className="pt-2">
             {!isAuth ? (
               <div className="grid gap-2">
@@ -277,8 +345,12 @@ const Navbar = () => {
                   )}
 
                   <div className="min-w-0">
-                    <p className="font-extrabold text-slate-900 truncate">{displayName}</p>
-                    <p className="text-xs text-slate-500 truncate">{displayEmail}</p>
+                    <p className="font-extrabold text-slate-900 truncate">
+                      {displayName}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {displayEmail}
+                    </p>
                   </div>
                 </div>
 

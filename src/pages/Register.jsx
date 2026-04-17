@@ -112,32 +112,33 @@ const Register = () => {
 
     if (!validate()) return;
 
-    try {
-      setLoading(true);
+ try {
+  setLoading(true);
 
-      const payload = {
-        ...form,
-        title: form.title.trim(),
-        first_name: form.first_name.trim(),
-        last_name: form.last_name.trim(),
-        email: form.email.trim(),
-        password: form.password,
-        platform:"Lottery"
-      };
+  const payload = {
+    ...form,
+    title: form.title.trim(),
+    first_name: form.first_name.trim(),
+    last_name: form.last_name.trim(),
+    email: form.email.trim(),
+    password: form.password,
+    platform: "Lottery",
+  };
 
-      // ✅ Redux API call
-      await dispatch(registerUser(payload)).unwrap();
+  await dispatch(registerUser(payload)).unwrap();
 
-      navigate("/");
+  navigate("/");
 
-    } catch (err) {
-      console.log(err);
-      setServerError(
-        err || "Registration failed. Please try again."
-      );
-    } finally {
-      setLoading(false);
-    }
+} catch (err) {
+  console.log(err);
+
+  const message =
+    err?.data?.message ||
+    err?.message ||
+    "Registration failed. Please try again.";
+
+  setServerError(message);
+}
   };
 
   /* ---------------- UI HELPERS ---------------- */
