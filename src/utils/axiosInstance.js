@@ -52,21 +52,36 @@ axiosInstance.interceptors.response.use(
 
     const isAdminApi = url.startsWith("/admin");
 
-    // ✅ Handle unauthorized
     if (status === 401) {
-      if (isAdminApi) {
-        // 🔥 Admin logout
-        localStorage.removeItem("adminUser");
-        localStorage.removeItem("admin_token");
-      } else {
-        // 🔥 User logout
-        localStorage.removeItem("user");
-        localStorage.removeItem("user_token");
-        localStorage.removeItem("token");
-      }
+      console.warn("⚠️ 401 Unauthorized:", url);
 
-      // 🔔 Notify app (AuthContext / listeners)
-      window.dispatchEvent(new Event("authChanged"));
+      const message =
+        error.response?.data?.message?.toLowerCase() || "";
+
+      // ✅ ONLY logout if token is truly invalid/expired
+      const shouldLogout =
+        message.includes("invalid token") ||
+        message.includes("token expired") ||
+        message.includes("unauthorized");
+
+      if (shouldLogout) {
+        console.warn("🔒 Logging out due to invalid/expired token");
+
+        if (isAdminApi) {
+          localStorage.removeItem("adminUser");
+          localStorage.removeItem("admin_token");
+        } else {
+          localStorage.removeItem("user");
+          localStorage.removeItem("user_token");
+          localStorage.removeItem("token");
+          localStorage.removeItem("bonus");
+        }
+
+        window.dispatchEvent(new Event("authChanged"));
+      } else {
+        // ❗ DO NOT logout for normal 401 (timing / race issues)
+        console.warn("⏸ Skipping logout (likely early request or timing issue)");
+      }
     }
 
     return Promise.reject(error);

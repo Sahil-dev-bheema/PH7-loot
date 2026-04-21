@@ -3,13 +3,16 @@ import { useDispatch, useSelector } from "react-redux";
 import { getCartAPI, removeCartItemAPI } from "../../features/cartSlice";
 import Payment from "../Payment";
 import axiosInstance from "../../utils/axiosInstance";
-import { useGetWalletQuery, useUpdateWalletMutation } from "../../service/userApi";
+import {
+  useGetWalletQuery,
+  useUpdateWalletMutation,
+} from "../../service/userApi";
 
 function AddToCart() {
   const dispatch = useDispatch();
 
   const { items, loading } = useSelector((state) => state.cart);
-  const { user } = useSelector((state) => state.auth);
+  const { user, bonus } = useSelector((state) => state.auth);
 
   const [openPayment, setOpenPayment] = useState(false);
 
@@ -22,11 +25,11 @@ function AddToCart() {
   });
 
   const walletBalance = Number(walletData?.cash ?? 0);
-
+  const totalAvailable = walletBalance + Number(bonus || 0);
   const tickets = Array.isArray(items) ? items : [];
 
   useEffect(() => {
-   dispatch(getCartAPI(user?.id || user?._id));
+    dispatch(getCartAPI(user?.id || user?._id));
   }, [dispatch]);
 
   const totalAmount = useMemo(() => {
@@ -46,15 +49,15 @@ function AddToCart() {
   const handleCheckout = () => {
     if (!tickets.length) return alert("Cart is empty");
     if (!user) return alert("Please login first");
-    if (totalAmount > walletBalance) return alert("Insufficient wallet balance");
 
+    if (totalAmount > totalAvailable)
+      return alert("Insufficient balance (wallet + bonus)");
     setOpenPayment(true);
   };
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6">
       <div className="max-w-3xl mx-auto bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
-
         {/* HEADER */}
         <div className="flex justify-between items-center mb-5">
           <h2 className="text-2xl font-extrabold text-gray-800">
@@ -97,9 +100,7 @@ function AddToCart() {
                     <p className="font-semibold text-gray-800">
                       {t.title || t.pool_title}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Qty: {qty}
-                    </p>
+                    <p className="text-xs text-gray-500 mt-1">Qty: {qty}</p>
                   </div>
 
                   <div className="text-right">
@@ -161,13 +162,23 @@ function AddToCart() {
 
               await axiosInstance.post("/ticket/buy", payload);
 
-              const remainingBalance = walletBalance - totalAmount;
+              let remainingAmount = totalAmount;
 
+              let currentBonus = Number(bonus || 0);
+              let currentWallet = walletBalance;
+
+              // 👉 STEP 1: deduct from bonus
+              let usedBonus = Math.min(currentBonus, remainingAmount);
+              currentBonus -= usedBonus;
+              remainingAmount -= usedBonus;
+
+              // 👉 STEP 2: deduct remaining from wallet
+              currentWallet -= remainingAmount;
               await updateWallet({
                 userId,
-                amount: remainingBalance,
+                amount: currentWallet,
               });
-
+              dispatch(setBonus(currentBonus));
               dispatch(getCartAPI());
               setOpenPayment(false);
 
@@ -178,7 +189,6 @@ function AddToCart() {
             }
           }}
         />
-
       </div>
     </div>
   );

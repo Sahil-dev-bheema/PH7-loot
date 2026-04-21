@@ -19,7 +19,7 @@ const WalletDropdown = () => {
 
   const navigate = useNavigate();
 
-  const { user } = useSelector((state) => state.auth);
+  const { user,bonus } = useSelector((state) => state.auth);
   const isLoggedIn = !!user;
 
   const userId = user?.id || user?._id;
@@ -38,8 +38,7 @@ const WalletDropdown = () => {
 
   /* ================= SAFE VALUES ================= */
   const walletBalance = Number(wallet?.cash ?? 0);
-  const walletBonus = Number(wallet?.bonus ?? 0);
-
+const walletBonus = Number(bonus ?? 0);
   const totalAmount = useMemo(() => {
     return walletBalance + walletBonus;
   }, [walletBalance, walletBonus]);
@@ -52,6 +51,9 @@ const WalletDropdown = () => {
     }
     setOpen((v) => !v);
   };
+  console.log("USER ID:", userId);
+console.log("WALLET DATA:", wallet);
+console.log("LOADING:", isLoading, isFetching);
 
   return (
     <>

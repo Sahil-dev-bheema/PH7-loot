@@ -127,7 +127,7 @@ const Register = () => {
 
   await dispatch(registerUser(payload)).unwrap();
 
-  navigate("/");
+  navigate("/login");
 
 } catch (err) {
   console.log(err);
@@ -138,6 +138,9 @@ const Register = () => {
     "Registration failed. Please try again.";
 
   setServerError(message);
+}
+finally{
+  setLoading(false);
 }
   };
 

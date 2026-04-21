@@ -1,9 +1,6 @@
 import React, { useMemo } from "react";
 import { useSelector } from "react-redux";
-import {
-  useGetUserProfileQuery,
-  useGetWalletQuery,
-} from "../../service/userApi";
+import { useGetUserProfileQuery } from "../../service/userApi";
 
 /* ---------- money formatter ---------- */
 const fmtMoney = (n) =>
@@ -16,30 +13,21 @@ const fmtMoney = (n) =>
 export default function UserProfile() {
   const { user } = useSelector((state) => state.auth);
 
-  const userId = user?._id || user?.uid || user?.userId;
+  /* ✅ FIXED: include id */
+  const userId =
+    user?.id || user?._id || user?.uid || user?.userId;
 
-  /* ================= RTK QUERY (PROFILE) ================= */
+  /* ================= PROFILE QUERY ================= */
   const {
     data: profile,
-    isLoading: profileLoading,
-    isFetching: profileFetching,
-    error: profileError,
+    isLoading,
+    isFetching,
+    error,
   } = useGetUserProfileQuery(userId, {
     skip: !userId,
   });
 
-  /* ================= RTK QUERY (WALLET) ================= */
-  const {
-    data: wallet,
-    isLoading: walletLoading,
-    isFetching: walletFetching,
-    error: walletError,
-  } = useGetWalletQuery(userId, {
-    skip: !userId,
-  });
-
   /* ================= SAFE DATA ================= */
-
   const shownUser = profile?.user || {};
 
   const fullName = useMemo(() => {
@@ -52,15 +40,18 @@ export default function UserProfile() {
 
   const email = shownUser?.email || "";
 
-  const totalAmount = useMemo(() => {
-    return Number(wallet?.cash || 0) + Number(wallet?.bonus || 0);
-  }, [wallet]);
+  const totalAmount = profile?.wallet || 0;
 
-  const isProfileLoading = profileLoading || profileFetching;
-  const isWalletLoading = walletLoading || walletFetching;
+  const packages = profile?.packages || [];
+  const tickets = profile?.tickets || [];
+
+  const isProfileLoading = isLoading || isFetching;
+
+  /* DEBUG (remove later) */
+  console.log("USER ID:", userId);
+  console.log("PROFILE:", profile);
 
   /* ================= UI ================= */
-
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="h-40 bg-gradient-to-r from-teal-300 via-emerald-200 to-lime-200" />
@@ -68,15 +59,12 @@ export default function UserProfile() {
       <div className="max-w-6xl mx-auto px-4 -mt-16 pb-10">
 
         {/* ERROR */}
-        {(profileError || walletError) && (
+        {error && (
           <div className="text-red-600 mb-4">
             {String(
-              profileError?.data?.message ||
-              walletError?.data?.message ||
-              profileError?.data ||
-              walletError?.data ||
-              profileError?.message ||
-              walletError?.message ||
+              error?.data?.message ||
+              error?.data ||
+              error?.message ||
               "Something went wrong"
             )}
           </div>
@@ -96,27 +84,27 @@ export default function UserProfile() {
           <div className="p-5 rounded-2xl bg-white shadow">
             <p className="text-sm text-gray-500">Wallet Balance</p>
             <p className="text-xl font-bold">
-              {isWalletLoading ? "Loading..." : fmtMoney(totalAmount)}
+              {isProfileLoading ? "Loading..." : fmtMoney(totalAmount)}
             </p>
           </div>
 
           <div className="p-5 rounded-2xl bg-white shadow">
             <p className="text-sm text-gray-500">Purchased Packages</p>
             <p className="text-xl font-bold">
-              {profile?.packages?.length || 0}
+              {packages.length}
             </p>
           </div>
 
           <div className="p-5 rounded-2xl bg-white shadow">
             <p className="text-sm text-gray-500">Tickets Purchased</p>
             <p className="text-xl font-bold">
-              {profile?.tickets?.length || 0}
+              {tickets.length}
             </p>
           </div>
 
         </div>
 
-        {/* SIDE BY SIDE */}
+        {/* LISTS */}
         <div className="mt-6 flex flex-col lg:flex-row gap-6">
 
           {/* PACKAGES */}
@@ -126,8 +114,8 @@ export default function UserProfile() {
             <div className="mt-4 space-y-4 max-h-[500px] overflow-y-auto">
               {isProfileLoading ? (
                 <div className="h-24 bg-slate-100 rounded-3xl animate-pulse" />
-              ) : profile?.packages?.length ? (
-                profile.packages.map((p, i) => (
+              ) : packages.length ? (
+                packages.map((p, i) => (
                   <div key={p.purchaseId || i} className="p-4 border rounded-xl">
                     {p.title}
                   </div>
@@ -145,8 +133,8 @@ export default function UserProfile() {
             <div className="mt-4 space-y-4 max-h-[500px] overflow-y-auto">
               {isProfileLoading ? (
                 <div className="h-24 bg-slate-100 rounded-3xl animate-pulse" />
-              ) : profile?.tickets?.length ? (
-                profile.tickets.map((t, i) => (
+              ) : tickets.length ? (
+                tickets.map((t, i) => (
                   <div key={t.id || i} className="p-4 border rounded-xl">
                     {t.pool_name}
                   </div>

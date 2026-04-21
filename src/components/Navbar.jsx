@@ -266,9 +266,7 @@ const cartCount = useMemo(() => {
                   className="relative h-10 w-10 rounded-2xl grid place-items-center bg-slate-100 ring-1 ring-slate-200"
                 >
                   <FiShoppingCart className="text-xl text-slate-700" />
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 rounded-full">
-                    2
-                  </span>
+                 
                 </button>
 
                 <button

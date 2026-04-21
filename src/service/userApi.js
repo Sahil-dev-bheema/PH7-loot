@@ -31,28 +31,31 @@ export const userApi = createApi({
   endpoints: (builder) => ({
 
     getUserProfile: builder.query({
-      query: (userId) => `/user/user-profile/${userId}`,
+      query: (userId) => ({
+        url : `/user/user-profile/${userId}`,
+      method :"GET",
+      }),
 
       transformResponse: (res) => {
-        const root = res?.data?.data || res?.data || res || {};
+  const root = res?.data || {};
 
-        return {
-          user: root?.user || {},
+  return {
+    user: root?.user || {},
 
-          packages: Array.isArray(root?.package)
-            ? root.package.map((p) => ({
-                purchaseId: p.user_package_id,
-                title: p.package_name,
-                price: Number(p.package_price || 0),
-                purchasedAt: p.purchased_at,
-              }))
-            : [],
+    packages: Array.isArray(root?.package)
+      ? root.package.map((p) => ({
+          purchaseId: p.user_package_id,
+          title: p.package_name,
+          price: Number(p.package_price || 0),
+          purchasedAt: p.purchased_at,
+        }))
+      : [],
 
-          tickets: Array.isArray(root?.tickets) ? root.tickets : [],
+    tickets: Array.isArray(root?.tickets) ? root.tickets : [],
 
-          wallet: Number(root?.wallet || 0),
-        };
-      },
+    wallet: Number(root?.wallet || 0),
+  };
+},
 
       providesTags: ["UserProfile"],
     }),
@@ -64,11 +67,11 @@ export const userApi = createApi({
       }),
 
       transformResponse: (res) => {
-        const root = res?.data?.data || res?.data || res || {};
-
+const root = res || {};
+const amount = Number(root.wallet || 0);
         return {
-          cash: Number(root.cash || 0),
-          bonus: Number(root.bonus || 0),
+          cash: amount,
+        
         };
       },
 
